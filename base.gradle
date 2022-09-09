@@ -27,6 +27,7 @@ android {
         buildConfigField "String", "SETTINGS_ENCRYPT_SECRET", "\"${project.settingsEncryptSecret}\""
         buildConfigField "String", "SHARING_SERVER_SECRET", "\"${project.sharingServerSecret}\""
 
+        buildConfigField "String", "GOOGLE_SIGN_IN_SERVER_CLIENT_ID", "\"${project.properties["googleSignInServerClientId"] ?: ""}\""
         // Feature Flags
         buildConfigField "boolean", "END_OF_YEAR_ENABLED", "false"
 
@@ -198,6 +199,7 @@ dependencies {
     implementation androidLibs.composeLiveData
     implementation androidLibs.composeNavigation
     implementation androidLibs.composeRx
+    implementation androidLibs.auth
 
     implementation libs.kotlinCoroutines
     implementation libs.kotlinCoroutinesAndroid

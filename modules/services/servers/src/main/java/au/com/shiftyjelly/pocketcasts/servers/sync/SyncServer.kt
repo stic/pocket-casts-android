@@ -19,6 +19,9 @@ interface SyncServer {
     @POST("/user/login")
     fun login(@Body request: LoginRequest): Single<LoginResponse>
 
+    @POST("/user/login_google")
+    suspend fun loginGoogle(@Header("Authorization") authorization: String): LoginResponse
+
     @POST("/user/change_email")
     fun emailChange(@Header("Authorization") authorization: String, @Body request: EmailChangeRequest): Single<UserChangeResponse>
 

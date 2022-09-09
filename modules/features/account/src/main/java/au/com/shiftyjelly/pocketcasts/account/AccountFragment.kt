@@ -1,10 +1,14 @@
 package au.com.shiftyjelly.pocketcasts.account
 
+import android.app.Activity
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.activityViewModels
@@ -22,7 +26,10 @@ import au.com.shiftyjelly.pocketcasts.ui.extensions.getThemeTintedDrawable
 import au.com.shiftyjelly.pocketcasts.utils.Util
 import au.com.shiftyjelly.pocketcasts.utils.observeOnce
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragment
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import javax.inject.Inject
 import au.com.shiftyjelly.pocketcasts.images.R as IR
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
@@ -104,6 +111,50 @@ class AccountFragment : BaseFragment() {
             if (view.findNavController().currentDestination?.id == R.id.accountFragment) {
                 view.findNavController().navigate(R.id.action_accountFragment_to_signInFragment)
             }
+        }
+
+        binding.btnGoogle?.setOnClickListener {
+            launchGoogleSignIn()
+        }
+    }
+
+    private val loginResultHandler = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result: ActivityResult ->
+        processGoogleSignInResult(result)
+    }
+
+    private fun launchGoogleSignIn() {
+        val viewModel: AccountFragmentViewModel by viewModels()
+        viewModel.launchGoogleSignIn(
+            onSuccess = { pendingIntent ->
+                try {
+                    val intentSenderRequest = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                    loginResultHandler.launch(intentSenderRequest)
+                } catch (e: Exception) {
+                    Timber.e(e, "Google sign-in failed to launch account picker.")
+                }
+            },
+            onFailure = { exception ->
+                Timber.e(exception, "Google sign-in failed to start.")
+                // TODO let the user know about the failure
+            }
+        )
+    }
+
+    private fun processGoogleSignInResult(result: ActivityResult) {
+        val activity = activity ?: return
+
+        if (result.resultCode != Activity.RESULT_OK) {
+            Timber.e("Google sign-in failed to return a result.")
+            return
+        }
+
+        val viewModel: AccountFragmentViewModel by viewModels()
+        val data = result.data
+        try {
+            val credential = Identity.getSignInClient(activity).getSignInCredentialFromIntent(data)
+            viewModel.signInWithGoogle(credential)
+        } catch (e: ApiException) {
+            Timber.e(e, "Google sign-in failed as unable to process result.")
         }
     }
 }
