@@ -12,11 +12,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import au.com.shiftyjelly.pocketcasts.compose.theme
 
 @Composable
-fun GradientIcon(icon: GradientIconData?) {
+fun GradientIcon(
+    icon: GradientIconData?,
+    width: Dp = 24.dp,
+    height: Dp = 24.dp
+) {
 
     if (icon != null) {
 
@@ -36,7 +41,7 @@ fun GradientIcon(icon: GradientIconData?) {
             painter = painterResource(icon.res),
             contentDescription = null,
             modifier = Modifier
-                .size(24.dp)
+                .size(width = width, height = height)
                 .graphicsLayer(alpha = 0.99f)
                 .drawWithCache {
                     onDrawWithContent {

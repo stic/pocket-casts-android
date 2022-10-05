@@ -11,7 +11,9 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import au.com.shiftyjelly.pocketcasts.compose.AppTheme
@@ -25,6 +27,8 @@ fun RowButton(
     includePadding: Boolean = true,
     enabled: Boolean = true,
     colors: ButtonColors = ButtonDefaults.buttonColors(),
+    fontSize: TextUnit = 18.sp,
+    fontWeight: FontWeight = FontWeight.SemiBold,
     onClick: () -> Unit
 ) {
     Row(
@@ -41,7 +45,8 @@ fun RowButton(
         ) {
             Text(
                 text = text,
-                fontSize = 18.sp,
+                fontSize = fontSize,
+                fontWeight = fontWeight,
                 modifier = Modifier.padding(6.dp),
                 color = MaterialTheme.theme.colors.primaryInteractive02
             )

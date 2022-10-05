@@ -786,7 +786,7 @@
     <string name="profile_reset_password_failed">Unable to email you a new password. Please try again later.</string>
     <string name="profile_reset_password_sent">Password Reset Link Sent</string>
     <string name="profile_reset_password_check_email">Please check your email</string>
-    <string name="profile_save_your_podcasts">Save your podcasts in the cloud and sync your progress with other devices</string>
+    <string name="profile_save_your_podcasts">Save your podcasts in the cloud and sync your progress with other devices.</string>
     <string name="profile_set_up_account">Set Up Account</string>
     <string name="profile_share_stats">Share stats</string>
     <string name="profile_sign_in" translatable="false">@string/sign_in</string>
