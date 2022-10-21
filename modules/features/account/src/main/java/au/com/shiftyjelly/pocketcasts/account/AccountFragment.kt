@@ -4,22 +4,32 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Scaffold
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.activityViewModels
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.CreateAccountViewModel
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
@@ -27,7 +37,6 @@ import au.com.shiftyjelly.pocketcasts.compose.AppTheme
 import au.com.shiftyjelly.pocketcasts.compose.bars.NavigationButton
 import au.com.shiftyjelly.pocketcasts.compose.bars.ThemedTopAppBar
 import au.com.shiftyjelly.pocketcasts.compose.buttons.RowButton
-import au.com.shiftyjelly.pocketcasts.compose.buttons.RowOutlinedButton
 import au.com.shiftyjelly.pocketcasts.compose.buttons.RowTextButton
 import au.com.shiftyjelly.pocketcasts.compose.components.GradientIcon
 import au.com.shiftyjelly.pocketcasts.compose.components.GradientIconData
@@ -35,6 +44,7 @@ import au.com.shiftyjelly.pocketcasts.compose.components.TextH20
 import au.com.shiftyjelly.pocketcasts.compose.components.TextP30
 import au.com.shiftyjelly.pocketcasts.compose.theme
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragment
+import com.google.android.gms.common.SignInButton
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import au.com.shiftyjelly.pocketcasts.account.R as AR
@@ -126,17 +136,42 @@ class AccountFragment : BaseFragment() {
         )
     }
 
+    private val googleButtonBorder: BorderStroke
+        @Composable
+        get() = BorderStroke(width = 2.dp, color = MaterialTheme.theme.colors.primaryInteractive01)
+
     @Composable
     private fun GoogleSignInButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-        RowOutlinedButton(
-            text = stringResource(LR.string.continue_with_google),
-            image = painterResource(IR.drawable.google_logo),
-            textColor = MaterialTheme.theme.colors.primaryText01,
-            borderColor = MaterialTheme.theme.colors.primaryInteractive03,
-            onClick = onClick,
-            includePadding = false,
+        Row(
             modifier = modifier
-        )
+                .then(Modifier.padding(16.dp))
+                .fillMaxWidth()
+        ) {
+
+            OutlinedButton(
+                onClick = { onClick() },
+                shape = RoundedCornerShape(12.dp),
+                border = googleButtonBorder,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(contentAlignment = Alignment.CenterStart) {
+                    Image(
+                        painter = painterResource(IR.drawable.google_logo),
+                        contentDescription = null
+                    )
+                    Text(
+                        text = stringResource(LR.string.continue_with_google),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.theme.colors.primaryText01,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .padding(horizontal = 30.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 
     @Composable
