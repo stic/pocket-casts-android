@@ -48,8 +48,8 @@ open class SyncServerManager @Inject constructor(
         return login(email, password, "sonos")
     }
 
-    suspend fun loginGoogle(idToken: String): String {
-        val response = server.loginGoogle("Bearer $idToken")
+    suspend fun loginGoogle(token: String): String {
+        val response = server.loginGoogle("Bearer $token")
         return response.token ?: ""
     }
 

@@ -86,7 +86,7 @@ class AccountFragment : BaseFragment() {
                         onGoogleSignInResult = { result ->
                             viewModel.signInWithGoogleResult(result)
                         },
-                        isGooglePlayServicesAvailable = viewModel.isGooglePlayServicesAvailable
+                        showContinueWithGoogleButton = viewModel.showContinueWithGoogleButton
                     )
                 }
             }
@@ -128,7 +128,7 @@ class AccountFragment : BaseFragment() {
         onGoogleSignInClick: (ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
         onGoogleSignInResult: (ActivityResult) -> Unit,
         modifier: Modifier = Modifier,
-        isGooglePlayServicesAvailable: Boolean
+        showContinueWithGoogleButton: Boolean
     ) {
         val launcher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartIntentSenderForResult()
@@ -165,10 +165,8 @@ class AccountFragment : BaseFragment() {
                     modifier = Modifier.padding(8.dp)
                 )
                 Spacer(Modifier.height(56.dp))
-                if (isGooglePlayServicesAvailable) {
-                    GoogleSignInButton(onClick = {
-                        onGoogleSignInClick(launcher)
-                    })
+                if (showContinueWithGoogleButton) {
+                    GoogleSignInButton(onClick = { onGoogleSignInClick(launcher) })
                     Spacer(Modifier.height(16.dp))
                 }
                 CreateAccountButton(onCreateAccountClick)

@@ -8,9 +8,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import au.com.shiftyjelly.pocketcasts.account.AccountAuth
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
+import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.ConnectionResult
@@ -25,12 +27,16 @@ import javax.inject.Inject
 @HiltViewModel
 class AccountFragmentViewModel @Inject constructor(
     userManager: UserManager,
+    private val accountAuth: AccountAuth,
     private val syncServerManager: SyncServerManager,
+    settings: Settings,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     val signInState = LiveDataReactiveStreams.fromPublisher(userManager.getSignInState())
 
-    val isGooglePlayServicesAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+    private val isGooglePlayServicesAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+    private val isFeatureFlagSingleSignOnEnabled = settings.isFeatureFlagSingleSignOnEnabled()
+    val showContinueWithGoogleButton = true // isGooglePlayServicesAvailable && isFeatureFlagSingleSignOnEnabled
 
     fun signInWithGoogle(onSignInResult: (IntentSenderRequest) -> Unit) {
         viewModelScope.launch {
@@ -63,25 +69,37 @@ class AccountFragmentViewModel @Inject constructor(
 
     fun signInWithGoogleResult(result: ActivityResult) {
         if (result.resultCode != Activity.RESULT_OK) {
-            if (result.data?.action == ActivityResultContracts.StartIntentSenderForResult.ACTION_INTENT_SENDER_REQUEST) {
+            val exception = if (result.data?.action == ActivityResultContracts.StartIntentSenderForResult.ACTION_INTENT_SENDER_REQUEST) {
                 // TODO remove this deprecation
                 @Suppress("DEPRECATION")
-                val exception = result.data?.getSerializableExtra(ActivityResultContracts.StartIntentSenderForResult.EXTRA_SEND_INTENT_EXCEPTION) as? Exception
-                Timber.e(exception, "Google Sign-In failed.")
+                result.data?.getSerializableExtra(ActivityResultContracts.StartIntentSenderForResult.EXTRA_SEND_INTENT_EXCEPTION) as? Exception
             } else {
-                Timber.e("Google Sign-In failed.")
+                null
             }
+
+            LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, exception, "Google Sign-In failed.")
             return
         }
         val oneTapClient = Identity.getSignInClient(context)
         val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
-        val idToken = credential.googleIdToken
-        if (idToken != null) {
-            // Got an ID token from Google. Use it to authenticate
-            // with your backend.
-            Timber.i("GOOGLE_SIGN_IN $idToken")
-        } else {
-            Timber.i("GOOGLE_SIGN_IN Null Token")
+        val token = credential.googleIdToken
+        if (token == null) {
+            LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, "Google Sign-In token null.")
+            return
+        }
+        viewModelScope.launch {
+            // val result =
+            accountAuth.signInWithGoogleToken(token)
+//            when (result) {
+//                is AccountAuth.AuthResult.Success -> {
+//                    signInState.postValue(SignInState.Success)
+//                }
+//                is AccountAuth.AuthResult.Failed -> {
+//                    val message = result.message
+//                    val errors = mutableSetOf(SignInError.SERVER)
+//                    signInState.postValue(SignInState.Failure(errors, message))
+//                }
+//            }
         }
     }
 }

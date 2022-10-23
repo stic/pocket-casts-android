@@ -18,6 +18,7 @@ object LogBuffer {
     const val TAG_CRASH = "Crash"
     const val TAG_BACKGROUND_TASKS = "BgTask"
     const val TAG_SUBSCRIPTIONS = "Subscriptions"
+    const val TAG_SINGLE_SIGN_ON = "SingleSignOn"
 
     private const val LOG_FILE_NAME = "debug.log"
     private const val LOG_BACKUP_FILE_NAME = "debug.log.1"
@@ -120,7 +121,7 @@ object LogBuffer {
         addLog(Log.INFO, tag, null, message + getThreadStackTraceString(), *args)
     }
 
-    fun e(tag: String, throwable: Throwable, message: String, vararg args: Any) {
+    fun e(tag: String, throwable: Throwable?, message: String, vararg args: Any) {
         addLog(Log.ERROR, tag, throwable, message, *args)
     }
 

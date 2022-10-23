@@ -14,10 +14,12 @@ import au.com.shiftyjelly.pocketcasts.repositories.refresh.RefreshPodcastsThread
 import au.com.shiftyjelly.pocketcasts.servers.ServerCallback
 import au.com.shiftyjelly.pocketcasts.servers.ServerManager
 import au.com.shiftyjelly.pocketcasts.servers.model.AuthResultModel
+import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -28,6 +30,7 @@ import au.com.shiftyjelly.pocketcasts.localization.R as LR
 class AccountAuth @Inject constructor(
     private val settings: Settings,
     private val serverManager: ServerManager,
+    private val syncServerManager: SyncServerManager,
     private val podcastManager: PodcastManager,
     private val analyticsTracker: AnalyticsTrackerWrapper,
     @ApplicationContext private val context: Context
@@ -51,6 +54,13 @@ class AccountAuth @Inject constructor(
             trackSignIn(authResult, signInSource)
             authResult
         }
+    }
+
+    suspend fun signInWithGoogleToken(googleToken: String) {
+        // TODO remove this debug
+        Timber.i("Token Google $googleToken")
+        val token = syncServerManager.loginGoogle(googleToken)
+        Timber.i("Token Pocket Casts $token")
     }
 
     private fun trackSignIn(authResult: AuthResult, signInSource: SignInSource) {
