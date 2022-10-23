@@ -13,6 +13,8 @@ import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
@@ -27,6 +29,8 @@ class AccountFragmentViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     val signInState = LiveDataReactiveStreams.fromPublisher(userManager.getSignInState())
+
+    val isGooglePlayServicesAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
     fun signInWithGoogle(onSignInResult: (IntentSenderRequest) -> Unit) {
         viewModelScope.launch {
