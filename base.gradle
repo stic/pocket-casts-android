@@ -28,7 +28,6 @@ android {
         buildConfigField "String", "SHARING_SERVER_SECRET", "\"${project.sharingServerSecret}\""
         buildConfigField "String", "GOOGLE_SIGN_IN_SERVER_CLIENT_ID", "\"${project.googleSignInServerClientId}\""
 
-        buildConfigField "String", "GOOGLE_SIGN_IN_SERVER_CLIENT_ID", "\"${project.properties["googleSignInServerClientId"] ?: ""}\""
         // Feature Flags
         buildConfigField "boolean", "END_OF_YEAR_ENABLED", "false"
 
@@ -205,6 +204,7 @@ dependencies {
     implementation libs.kotlinCoroutines
     implementation libs.kotlinCoroutinesAndroid
     implementation libs.kotlinCoroutinesRx
+    implementation libs.kotlinCoroutinesPlayServices
     implementation libs.deviceNames
     implementation libs.exoplayerCore
     implementation libs.exoplayerUi

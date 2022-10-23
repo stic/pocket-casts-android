@@ -9,11 +9,8 @@ import android.os.Bundle
 import android.os.Parcelable
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
 import androidx.navigation.NavDestination
 import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.setupWithNavController
 import au.com.shiftyjelly.pocketcasts.account.databinding.AccountActivityBinding
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.CreateAccountState
 import au.com.shiftyjelly.pocketcasts.account.viewmodel.CreateAccountViewModel
@@ -86,23 +83,11 @@ class AccountActivity : AppCompatActivity() {
 
             navController.setGraph(graph, arguments)
 
-            val navConfiguration = AppBarConfiguration(navController.graph)
-            binding.toolbar?.setupWithNavController(navController, navConfiguration)
-            binding.toolbar?.setNavigationOnClickListener { _ -> onBackPressed() }
             binding.carHeader?.btnClose?.setOnClickListener { onBackPressed() }
 
             navController.addOnDestinationChangedListener { _, destination, _ ->
                 destination.trackShown()
-                if (!Util.isCarUiMode(this)) {
-                    when (destination.id) {
-                        R.id.createDoneFragment, R.id.accountFragment, R.id.promoCodeFragment -> {
-                            binding.toolbar?.isVisible = false
-                        }
-                        else -> {
-                            binding.toolbar?.isVisible = true
-                        }
-                    }
-                } else {
+                if (Util.isCarUiMode(this)) {
                     val resource = when (destination.id) {
                         R.id.createDoneFragment, R.id.accountFragment, R.id.promoCodeFragment -> {
                             IR.drawable.ic_close

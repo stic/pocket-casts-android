@@ -4,6 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -15,10 +20,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,9 +38,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.activityViewModels
-import au.com.shiftyjelly.pocketcasts.account.viewmodel.CreateAccountViewModel
+import androidx.navigation.findNavController
+import au.com.shiftyjelly.pocketcasts.account.viewmodel.AccountFragmentViewModel
+import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
-import au.com.shiftyjelly.pocketcasts.compose.AppTheme
+import au.com.shiftyjelly.pocketcasts.analytics.FirebaseAnalyticsTracker
+import au.com.shiftyjelly.pocketcasts.compose.AppThemeWithBackground
 import au.com.shiftyjelly.pocketcasts.compose.bars.NavigationButton
 import au.com.shiftyjelly.pocketcasts.compose.bars.ThemedTopAppBar
 import au.com.shiftyjelly.pocketcasts.compose.buttons.RowButton
@@ -43,8 +53,8 @@ import au.com.shiftyjelly.pocketcasts.compose.components.GradientIconData
 import au.com.shiftyjelly.pocketcasts.compose.components.TextH20
 import au.com.shiftyjelly.pocketcasts.compose.components.TextP30
 import au.com.shiftyjelly.pocketcasts.compose.theme
+import au.com.shiftyjelly.pocketcasts.utils.Util
 import au.com.shiftyjelly.pocketcasts.views.fragments.BaseFragment
-import com.google.android.gms.common.SignInButton
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import au.com.shiftyjelly.pocketcasts.account.R as AR
@@ -61,25 +71,20 @@ class AccountFragment : BaseFragment() {
     }
 
     @Inject lateinit var analyticsTracker: AnalyticsTrackerWrapper
-    private val accountViewModel: CreateAccountViewModel by activityViewModels()
+    private val viewModel: AccountFragmentViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return ComposeView(requireContext()).apply {
             setContent {
-                AppTheme(theme.activeTheme) {
-                    Scaffold(
-                        topBar = {
-                            ThemedTopAppBar(
-                                navigationButton = NavigationButton.Close,
-                                onNavigationClick = {}
-                            )
+                AppThemeWithBackground(theme.activeTheme) {
+                    SignInOrCreatePage(
+                        onCreateAccountClick = { createAccountClicked() },
+                        onSignInClick = { signInClicked() },
+                        onGoogleSignInClick = { launcher ->
+                            viewModel.signInWithGoogle(onSignInResult = { intentSenderRequest -> launcher.launch(intentSenderRequest) })
                         },
-                        content = {
-                            SignInOrCreatePage(
-                                onCreateAccountClick = {},
-                                onSignInClick = {},
-                                onContinueWithGoogle = {}
-                            )
+                        onGoogleSignInResult = { result ->
+                            viewModel.signInWithGoogleResult(result)
                         }
                     )
                 }
@@ -87,37 +92,85 @@ class AccountFragment : BaseFragment() {
         }
     }
 
+    private fun closeClicked() {
+        activity?.finish()
+    }
+
+    private fun createAccountClicked() {
+        val view = view ?: return
+        val navController = view.findNavController()
+        analyticsTracker.track(AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED, mapOf(BUTTON to CREATE_ACCOUNT))
+        FirebaseAnalyticsTracker.createAccountClicked()
+        if (navController.currentDestination?.id == AR.id.accountFragment) {
+            if (Util.isCarUiMode(view.context)) { // We can't sign up to plus on cars so skip that step
+                navController.navigate(AR.id.action_accountFragment_to_createEmailFragment)
+            } else {
+                navController.navigate(AR.id.action_accountFragment_to_createAccountFragment)
+            }
+        }
+    }
+
+    private fun signInClicked() {
+        val view = view ?: return
+        val navController = view.findNavController()
+        analyticsTracker.track(AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED, mapOf(BUTTON to SIGN_IN))
+        FirebaseAnalyticsTracker.signInAccountClicked()
+        if (navController.currentDestination?.id == AR.id.accountFragment) {
+            navController.navigate(AR.id.action_accountFragment_to_signInFragment)
+        }
+    }
+
     @Composable
     private fun SignInOrCreatePage(
         onCreateAccountClick: () -> Unit,
         onSignInClick: () -> Unit,
-        onContinueWithGoogle: () -> Unit,
+        onGoogleSignInClick: (ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
+        onGoogleSignInResult: (ActivityResult) -> Unit,
         modifier: Modifier = Modifier
     ) {
+        val launcher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+            onGoogleSignInResult(result)
+        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier
                 .background(MaterialTheme.theme.colors.secondaryUi01)
-                .padding(all = 16.dp)
                 .fillMaxHeight()
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(16.dp))
-            CreateNewAccountIcon()
-            Spacer(Modifier.height(24.dp))
-            TextH20(stringResource(LR.string.profile_sign_in_or_create_account))
-            Spacer(Modifier.height(8.dp))
-            TextP30(
-                text = stringResource(LR.string.profile_save_your_podcasts),
-                color = MaterialTheme.theme.colors.primaryText02,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(8.dp)
+            ThemedTopAppBar(
+                navigationButton = NavigationButton.Close,
+                onNavigationClick = { closeClicked() }
             )
-            Spacer(Modifier.height(56.dp))
-            GoogleSignInButton(onContinueWithGoogle)
-            Spacer(Modifier.height(16.dp))
-            CreateAccountButton(onCreateAccountClick)
-            Spacer(Modifier.height(16.dp))
-            SignInButton(onSignInClick)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .padding(all = 16.dp)
+                    .widthIn(0.dp, 600.dp)
+            ) {
+                Spacer(Modifier.height(16.dp))
+                CreateNewAccountIcon()
+                Spacer(Modifier.height(24.dp))
+                TextH20(stringResource(LR.string.profile_sign_in_or_create_account))
+                Spacer(Modifier.height(8.dp))
+                TextP30(
+                    text = stringResource(LR.string.profile_save_your_podcasts),
+                    color = MaterialTheme.theme.colors.primaryText02,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(8.dp)
+                )
+                Spacer(Modifier.height(56.dp))
+                GoogleSignInButton(onClick = {
+                    onGoogleSignInClick(launcher)
+                })
+                Spacer(Modifier.height(16.dp))
+                CreateAccountButton(onCreateAccountClick)
+                Spacer(Modifier.height(16.dp))
+                SignInButton(onSignInClick)
+            }
         }
     }
 
@@ -138,18 +191,16 @@ class AccountFragment : BaseFragment() {
 
     private val googleButtonBorder: BorderStroke
         @Composable
-        get() = BorderStroke(width = 2.dp, color = MaterialTheme.theme.colors.primaryInteractive01)
+        get() = BorderStroke(width = 2.dp, color = MaterialTheme.theme.colors.primaryInteractive03)
 
     @Composable
     private fun GoogleSignInButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+        // TODO maybe move this to another file
         Row(
-            modifier = modifier
-                .then(Modifier.padding(16.dp))
-                .fillMaxWidth()
+            modifier = modifier.fillMaxWidth()
         ) {
-
             OutlinedButton(
-                onClick = { onClick() },
+                onClick = onClick,
                 shape = RoundedCornerShape(12.dp),
                 border = googleButtonBorder,
                 modifier = Modifier.fillMaxWidth()
