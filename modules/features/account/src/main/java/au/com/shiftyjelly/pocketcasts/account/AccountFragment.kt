@@ -80,11 +80,20 @@ class AccountFragment : BaseFragment() {
                     SignInOrCreatePage(
                         onCreateAccountClick = { createAccountClicked() },
                         onSignInClick = { signInClicked() },
-                        onGoogleSignInClick = { launcher ->
-                            viewModel.signInWithGoogle(onSignInResult = { intentSenderRequest -> launcher.launch(intentSenderRequest) })
+                        onGoogleSignInClick = { googleOneTapSignInLauncher, googleLegacySignInLauncher ->
+                            viewModel.beginSignInGoogleOneTap(
+                                onGoogleOneTapSignInIntent = { intent -> googleOneTapSignInLauncher.launch(intent) },
+                                onGoogleLegacySignInIntent = { intent -> googleLegacySignInLauncher.launch(intent) },
+                            )
                         },
-                        onGoogleSignInResult = { result ->
-                            viewModel.signInWithGoogleResult(result)
+                        onGoogleOneTapSignInResult = { result, googleLegacySignInLauncher ->
+                            viewModel.onGoogleOneTapSignInResult(
+                                result = result,
+                                onGoogleLegacySignInIntent = { intent -> googleLegacySignInLauncher.launch(intent) }
+                            )
+                        },
+                        onGoogleLegacySignInResult = { result ->
+                            viewModel.onGoogleLegacySignInResult(result)
                         },
                         showContinueWithGoogleButton = viewModel.showContinueWithGoogleButton
                     )
@@ -125,15 +134,21 @@ class AccountFragment : BaseFragment() {
     private fun SignInOrCreatePage(
         onCreateAccountClick: () -> Unit,
         onSignInClick: () -> Unit,
-        onGoogleSignInClick: (ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
-        onGoogleSignInResult: (ActivityResult) -> Unit,
+        onGoogleSignInClick: (ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>, ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
+        onGoogleOneTapSignInResult: (ActivityResult, ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
+        onGoogleLegacySignInResult: (ActivityResult) -> Unit,
         modifier: Modifier = Modifier,
         showContinueWithGoogleButton: Boolean
     ) {
-        val launcher = rememberLauncherForActivityResult(
+        val googleLegacySignInLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartIntentSenderForResult()
         ) { result ->
-            onGoogleSignInResult(result)
+            onGoogleLegacySignInResult(result)
+        }
+        val googleOneTapSignInLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+            onGoogleOneTapSignInResult(result, googleLegacySignInLauncher)
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -166,7 +181,7 @@ class AccountFragment : BaseFragment() {
                 )
                 Spacer(Modifier.height(56.dp))
                 if (showContinueWithGoogleButton) {
-                    GoogleSignInButton(onClick = { onGoogleSignInClick(launcher) })
+                    GoogleSignInButton(onClick = { onGoogleSignInClick(googleOneTapSignInLauncher, googleLegacySignInLauncher) })
                     Spacer(Modifier.height(16.dp))
                 }
                 CreateAccountButton(onCreateAccountClick)

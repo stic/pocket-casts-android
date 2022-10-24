@@ -1,27 +1,29 @@
 package au.com.shiftyjelly.pocketcasts.account.viewmodel
 
-import android.app.Activity
 import android.content.Context
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.account.AccountAuth
+import au.com.shiftyjelly.pocketcasts.account.BuildConfig
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.GetSignInIntentRequest
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -36,70 +38,84 @@ class AccountFragmentViewModel @Inject constructor(
 
     private val isGooglePlayServicesAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
     private val isFeatureFlagSingleSignOnEnabled = settings.isFeatureFlagSingleSignOnEnabled()
-    val showContinueWithGoogleButton = true // isGooglePlayServicesAvailable && isFeatureFlagSingleSignOnEnabled
+    val showContinueWithGoogleButton = BuildConfig.DEBUG || (isGooglePlayServicesAvailable && isFeatureFlagSingleSignOnEnabled)
 
-    fun signInWithGoogle(onSignInResult: (IntentSenderRequest) -> Unit) {
+    fun beginSignInGoogleOneTap(onGoogleOneTapSignInIntent: (IntentSenderRequest) -> Unit, onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
         viewModelScope.launch {
-            val signInClient = Identity.getSignInClient(context)
-            val signInRequest = BeginSignInRequest.builder()
-                .setGoogleIdTokenRequestOptions(
-                    BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                        .setSupported(true)
-                        // use the Google Cloud credentials OAuth Server Client ID, not the Android Client ID.
-                        .setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
-                        // Todo is this right? only show accounts previously used to sign in.
-                        .setFilterByAuthorizedAccounts(false)
-                        .build()
-                )
-                .build()
-
+            // try to sign in with Google One Tap
             try {
-                val result = signInClient.beginSignIn(signInRequest).await()
-
-                // Now construct the IntentSenderRequest the launcher requires
-                val intentSenderRequest = IntentSenderRequest.Builder(result.pendingIntent).build()
-                onSignInResult(intentSenderRequest)
+                val beginSignInRequest = BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                    .setSupported(true)
+                    // use the Google Cloud credentials OAuth Server Client ID, not the Android Client ID.
+                    .setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
+                    // don't just show accounts previously used to sign in.
+                    .setFilterByAuthorizedAccounts(false)
+                    .build()
+                val signInRequest = BeginSignInRequest.builder()
+                    .setGoogleIdTokenRequestOptions(beginSignInRequest)
+                    .build()
+                val result = Identity.getSignInClient(context).beginSignIn(signInRequest).await()
+                val intentRequest = IntentSenderRequest.Builder(result.pendingIntent).build()
+                onGoogleOneTapSignInIntent(intentRequest)
             } catch (e: Exception) {
-                // No saved credentials found. Launch the One Tap sign-up flow, or
-                // do nothing and continue presenting the signed-out UI.
-                Timber.e(e, "Unable to sign in with Google")
+                LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google One Tap")
+                // it's common for the One Tap to fail so try the legacy Google Sign-In
+                beginSignInGoogleLegacy(onGoogleLegacySignInIntent)
             }
         }
     }
 
-    fun signInWithGoogleResult(result: ActivityResult) {
-        if (result.resultCode != Activity.RESULT_OK) {
-            val exception = if (result.data?.action == ActivityResultContracts.StartIntentSenderForResult.ACTION_INTENT_SENDER_REQUEST) {
-                // TODO remove this deprecation
-                @Suppress("DEPRECATION")
-                result.data?.getSerializableExtra(ActivityResultContracts.StartIntentSenderForResult.EXTRA_SEND_INTENT_EXCEPTION) as? Exception
-            } else {
-                null
-            }
-
-            LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, exception, "Google Sign-In failed.")
-            return
-        }
-        val oneTapClient = Identity.getSignInClient(context)
-        val credential = oneTapClient.getSignInCredentialFromIntent(result.data)
-        val token = credential.googleIdToken
+    private suspend fun beginSignInGoogleLegacy(onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
+        val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
+        val token = lastSignedInAccount?.idToken
         if (token == null) {
-            LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, "Google Sign-In token null.")
-            return
+            try {
+                val request = GetSignInIntentRequest.builder()
+                    .setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
+                    .build()
+                val signInIntent = Identity.getSignInClient(context).getSignInIntent(request).await()
+                val intentSenderRequest = IntentSenderRequest.Builder(signInIntent.intentSender).build()
+                onGoogleLegacySignInIntent(intentSenderRequest)
+            } catch (e: Exception) {
+                LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google Legacy")
+            }
+        } else {
+            signInWithGoogleToken(token)
         }
+    }
+
+    private suspend fun signInWithGoogleToken(token: String) {
+        accountAuth.signInWithGoogleToken(token)
+    }
+
+    fun onGoogleOneTapSignInResult(result: ActivityResult, onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
         viewModelScope.launch {
-            // val result =
-            accountAuth.signInWithGoogleToken(token)
-//            when (result) {
-//                is AccountAuth.AuthResult.Success -> {
-//                    signInState.postValue(SignInState.Success)
-//                }
-//                is AccountAuth.AuthResult.Failed -> {
-//                    val message = result.message
-//                    val errors = mutableSetOf(SignInError.SERVER)
-//                    signInState.postValue(SignInState.Failure(errors, message))
-//                }
-//            }
+            try {
+                onGoogleSignInResult(result)
+            } catch (e: Exception) {
+                if (e is ApiException && e.statusCode == CommonStatusCodes.CANCELED) {
+                    // user declined to sign in
+                    return@launch
+                }
+                LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to get sign in credentials from Google One Tap result.")
+                beginSignInGoogleLegacy(onGoogleLegacySignInIntent)
+            }
         }
+    }
+
+    fun onGoogleLegacySignInResult(result: ActivityResult) {
+        viewModelScope.launch {
+            try {
+                onGoogleSignInResult(result)
+            } catch (e: Exception) {
+                LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to get sign in credentials from Google Legacy result.")
+            }
+        }
+    }
+
+    private suspend fun onGoogleSignInResult(result: ActivityResult) {
+        val credential = Identity.getSignInClient(context).getSignInCredentialFromIntent(result.data)
+        val token = credential.googleIdToken ?: throw Exception("Unable to sign in because no token was returned.")
+        signInWithGoogleToken(token)
     }
 }
