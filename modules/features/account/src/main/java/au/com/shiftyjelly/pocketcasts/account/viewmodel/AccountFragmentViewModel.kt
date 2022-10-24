@@ -1,6 +1,7 @@
 package au.com.shiftyjelly.pocketcasts.account.viewmodel
 
 import android.content.Context
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.lifecycle.LiveDataReactiveStreams
@@ -40,7 +41,10 @@ class AccountFragmentViewModel @Inject constructor(
     private val isFeatureFlagSingleSignOnEnabled = settings.isFeatureFlagSingleSignOnEnabled()
     val showContinueWithGoogleButton = BuildConfig.DEBUG || (isGooglePlayServicesAvailable && isFeatureFlagSingleSignOnEnabled)
 
-    fun beginSignInGoogleOneTap(onGoogleOneTapSignInIntent: (IntentSenderRequest) -> Unit, onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
+    fun beginSignInGoogleOneTap(
+        googleOneTapSignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
+        googleLegacySignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>
+    ) {
         viewModelScope.launch {
             // try to sign in with Google One Tap
             try {
@@ -56,16 +60,16 @@ class AccountFragmentViewModel @Inject constructor(
                     .build()
                 val result = Identity.getSignInClient(context).beginSignIn(signInRequest).await()
                 val intentRequest = IntentSenderRequest.Builder(result.pendingIntent).build()
-                onGoogleOneTapSignInIntent(intentRequest)
+                googleOneTapSignInLauncher.launch(intentRequest)
             } catch (e: Exception) {
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google One Tap")
                 // it's common for the One Tap to fail so try the legacy Google Sign-In
-                beginSignInGoogleLegacy(onGoogleLegacySignInIntent)
+                beginSignInGoogleLegacy(googleLegacySignInLauncher)
             }
         }
     }
 
-    private suspend fun beginSignInGoogleLegacy(onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
+    private suspend fun beginSignInGoogleLegacy(googleLegacySignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) {
         val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
         val token = lastSignedInAccount?.idToken
         if (token == null) {
@@ -75,7 +79,7 @@ class AccountFragmentViewModel @Inject constructor(
                     .build()
                 val signInIntent = Identity.getSignInClient(context).getSignInIntent(request).await()
                 val intentSenderRequest = IntentSenderRequest.Builder(signInIntent.intentSender).build()
-                onGoogleLegacySignInIntent(intentSenderRequest)
+                googleLegacySignInLauncher.launch(intentSenderRequest)
             } catch (e: Exception) {
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google Legacy")
             }
@@ -88,7 +92,7 @@ class AccountFragmentViewModel @Inject constructor(
         accountAuth.signInWithGoogleToken(token)
     }
 
-    fun onGoogleOneTapSignInResult(result: ActivityResult, onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit) {
+    fun onGoogleOneTapSignInResult(result: ActivityResult, googleLegacySignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) {
         viewModelScope.launch {
             try {
                 onGoogleSignInResult(result)
@@ -98,7 +102,7 @@ class AccountFragmentViewModel @Inject constructor(
                     return@launch
                 }
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to get sign in credentials from Google One Tap result.")
-                beginSignInGoogleLegacy(onGoogleLegacySignInIntent)
+                beginSignInGoogleLegacy(googleLegacySignInLauncher)
             }
         }
     }

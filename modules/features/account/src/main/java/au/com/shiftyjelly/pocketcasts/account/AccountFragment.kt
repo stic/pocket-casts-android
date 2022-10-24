@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -76,25 +75,23 @@ class AccountFragment : BaseFragment() {
             setContent {
                 AppThemeWithBackground(theme.activeTheme) {
                     // request Google Legacy Sign-In and process the result
-                    val googleLegacySignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                    val googleLegacySignInLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.StartIntentSenderForResult()
+                    ) { result ->
                         viewModel.onGoogleLegacySignInResult(result)
                     }
-                    val onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit = { intent ->
-                        googleLegacySignInLauncher.launch(intent)
-                    }
                     // request Google On Tap Sign-In and process the result
-                    val googleOneTapSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-                        viewModel.onGoogleOneTapSignInResult(result, onGoogleLegacySignInIntent)
-                    }
-                    val onGoogleOneTapSignInIntent: (IntentSenderRequest) -> Unit = { intent ->
-                        googleOneTapSignInLauncher.launch(intent)
+                    val googleOneTapSignInLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.StartIntentSenderForResult()
+                    ) { result ->
+                        viewModel.onGoogleOneTapSignInResult(result, googleLegacySignInLauncher)
                     }
 
                     SignInOrCreatePage(
                         onCreateAccountClick = { createAccountClicked() },
                         onSignInClick = { signInClicked() },
                         onGoogleSignInClick = {
-                            viewModel.beginSignInGoogleOneTap(onGoogleOneTapSignInIntent, onGoogleLegacySignInIntent)
+                            viewModel.beginSignInGoogleOneTap(googleOneTapSignInLauncher, googleLegacySignInLauncher)
                         },
                         showContinueWithGoogleButton = viewModel.showContinueWithGoogleButton
                     )
@@ -110,7 +107,7 @@ class AccountFragment : BaseFragment() {
     private fun createAccountClicked() {
         val view = view ?: return
         val navController = view.findNavController()
-        analyticsTracker.track(AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED, mapOf(BUTTON to CREATE_ACCOUNT))
+        analyticsTracker.track(AnalyticsEvent.SETUP_ACCOUNT_BUTTON_TAPPED, mapOf(BUTTON to AccountActivity.AccountUpdatedSource.CREATE_ACCOUNT))
         FirebaseAnalyticsTracker.createAccountClicked()
         if (navController.currentDestination?.id == AR.id.accountFragment) {
             if (Util.isCarUiMode(view.context)) { // We can't sign up to plus on cars so skip that step
