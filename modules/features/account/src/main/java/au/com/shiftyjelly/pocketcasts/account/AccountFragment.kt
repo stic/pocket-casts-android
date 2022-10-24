@@ -4,9 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -77,23 +75,26 @@ class AccountFragment : BaseFragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 AppThemeWithBackground(theme.activeTheme) {
+                    // request Google Legacy Sign-In and process the result
+                    val googleLegacySignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                        viewModel.onGoogleLegacySignInResult(result)
+                    }
+                    val onGoogleLegacySignInIntent: (IntentSenderRequest) -> Unit = { intent ->
+                        googleLegacySignInLauncher.launch(intent)
+                    }
+                    // request Google On Tap Sign-In and process the result
+                    val googleOneTapSignInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                        viewModel.onGoogleOneTapSignInResult(result, onGoogleLegacySignInIntent)
+                    }
+                    val onGoogleOneTapSignInIntent: (IntentSenderRequest) -> Unit = { intent ->
+                        googleOneTapSignInLauncher.launch(intent)
+                    }
+
                     SignInOrCreatePage(
                         onCreateAccountClick = { createAccountClicked() },
                         onSignInClick = { signInClicked() },
-                        onGoogleSignInClick = { googleOneTapSignInLauncher, googleLegacySignInLauncher ->
-                            viewModel.beginSignInGoogleOneTap(
-                                onGoogleOneTapSignInIntent = { intent -> googleOneTapSignInLauncher.launch(intent) },
-                                onGoogleLegacySignInIntent = { intent -> googleLegacySignInLauncher.launch(intent) },
-                            )
-                        },
-                        onGoogleOneTapSignInResult = { result, googleLegacySignInLauncher ->
-                            viewModel.onGoogleOneTapSignInResult(
-                                result = result,
-                                onGoogleLegacySignInIntent = { intent -> googleLegacySignInLauncher.launch(intent) }
-                            )
-                        },
-                        onGoogleLegacySignInResult = { result ->
-                            viewModel.onGoogleLegacySignInResult(result)
+                        onGoogleSignInClick = {
+                            viewModel.beginSignInGoogleOneTap(onGoogleOneTapSignInIntent, onGoogleLegacySignInIntent)
                         },
                         showContinueWithGoogleButton = viewModel.showContinueWithGoogleButton
                     )
@@ -134,22 +135,10 @@ class AccountFragment : BaseFragment() {
     private fun SignInOrCreatePage(
         onCreateAccountClick: () -> Unit,
         onSignInClick: () -> Unit,
-        onGoogleSignInClick: (ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>, ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
-        onGoogleOneTapSignInResult: (ActivityResult, ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) -> Unit,
-        onGoogleLegacySignInResult: (ActivityResult) -> Unit,
+        onGoogleSignInClick: () -> Unit,
         modifier: Modifier = Modifier,
         showContinueWithGoogleButton: Boolean
     ) {
-        val googleLegacySignInLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.StartIntentSenderForResult()
-        ) { result ->
-            onGoogleLegacySignInResult(result)
-        }
-        val googleOneTapSignInLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.StartIntentSenderForResult()
-        ) { result ->
-            onGoogleOneTapSignInResult(result, googleLegacySignInLauncher)
-        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier
@@ -181,7 +170,7 @@ class AccountFragment : BaseFragment() {
                 )
                 Spacer(Modifier.height(56.dp))
                 if (showContinueWithGoogleButton) {
-                    GoogleSignInButton(onClick = { onGoogleSignInClick(googleOneTapSignInLauncher, googleLegacySignInLauncher) })
+                    GoogleSignInButton(onClick = { onGoogleSignInClick() })
                     Spacer(Modifier.height(16.dp))
                 }
                 CreateAccountButton(onCreateAccountClick)
