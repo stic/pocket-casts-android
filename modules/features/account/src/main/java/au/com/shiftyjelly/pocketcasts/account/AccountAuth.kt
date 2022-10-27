@@ -14,7 +14,9 @@ import au.com.shiftyjelly.pocketcasts.repositories.refresh.RefreshPodcastsThread
 import au.com.shiftyjelly.pocketcasts.servers.ServerCallback
 import au.com.shiftyjelly.pocketcasts.servers.ServerManager
 import au.com.shiftyjelly.pocketcasts.servers.model.AuthResultModel
+import au.com.shiftyjelly.pocketcasts.servers.sync.AuthorizeResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
+import au.com.shiftyjelly.pocketcasts.servers.sync.TokenResponse
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -41,26 +43,52 @@ class AccountAuth @Inject constructor(
         private const val KEY_ERROR_CODE = "error_code"
     }
 
-    suspend fun signInWithEmailAndPassword(
-        email: String,
-        password: String,
-        signInSource: SignInSource
-    ): AuthResult {
-        return withContext(Dispatchers.IO) {
-            val authResult = loginToSyncServer(email, password)
-            if (authResult is AuthResult.Success) {
-                signInSuccessful(email, password, authResult.result)
-            }
-            trackSignIn(authResult, signInSource)
-            authResult
-        }
+//    suspend fun signInWithEmailAndPassword(
+//        email: String,
+//        password: String,
+//        signInSource: SignInSource
+//    ): AuthResult {
+//        return withContext(Dispatchers.IO) {
+//            val authResult = loginToSyncServer(email, password)
+//            if (authResult is AuthResult.Success) {
+//                signInSuccessful(email, password, authResult.result)
+//            }
+//            trackSignIn(authResult, signInSource)
+//            authResult
+//        }
+//    }
+
+    suspend fun authorizeWithEmailAndPassword(email: String, password: String): AuthorizeResponse {
+        return syncServerManager.loginPocketCasts(email = email, password = password)
+    }
+
+    suspend fun tokenUsingAuthorizationCode(authorizationCode: String, email: String, clientId: String): TokenResponse {
+        val response = syncServerManager.tokenUsingAuthorizationCode(code = authorizationCode, clientId = clientId)
+        signInSuccessful(
+            email = email,
+            refreshToken = response.refreshToken,
+            accessToken = response.accessToken,
+            clientId = clientId
+        )
+        return response
+    }
+
+    suspend fun tokenUsingRefreshToken(refreshToken: String, clientId: String): TokenResponse {
+        return syncServerManager.tokenUsingRefreshToken(refreshToken, clientId)
     }
 
     suspend fun signInWithGoogleToken(googleToken: String) {
         // TODO remove this debug
         Timber.i("Token Google $googleToken")
-        val token = syncServerManager.loginGoogle(googleToken)
-        Timber.i("Token Pocket Casts $token")
+        val response = syncServerManager.loginGoogle(googleToken)
+        response.email
+        response.token
+        bnb
+        // Timber.i("Token Pocket Casts $token")
+
+        // val account = GoogleSignIn.getLastSignedInAccount(context)?.idToken
+        // account
+        // Identity.getSignInClient(context)
     }
 
     private fun trackSignIn(authResult: AuthResult, signInSource: SignInSource) {
@@ -182,10 +210,10 @@ class AccountAuth @Inject constructor(
         )
     }
 
-    private suspend fun signInSuccessful(email: String, password: String, authResult: AuthResultModel?) {
-        LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Signed in successfully to $email")
-        // Store details in android account manager
-        if (authResult?.token != null && authResult.token?.isNotEmpty() == true) {
+    private suspend fun signInSuccessful(email: String, refreshToken: String?, accessToken: String, clientId: String) {
+        LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Signed in successfully to $clientId")
+        // Store details in Android Account Manager
+        if (refreshToken != null) {
             LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Saving $email to account manager")
             val account = Account(email, AccountConstants.ACCOUNT_TYPE)
             val accountManager = AccountManager.get(context)

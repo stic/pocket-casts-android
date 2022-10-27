@@ -25,6 +25,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -54,6 +55,7 @@ class AccountFragmentViewModel @Inject constructor(
                     .setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
                     // don't just show accounts previously used to sign in.
                     .setFilterByAuthorizedAccounts(false)
+                    .setNonce()
                     .build()
                 val signInRequest = BeginSignInRequest.builder()
                     .setGoogleIdTokenRequestOptions(beginSignInRequest)
@@ -71,11 +73,14 @@ class AccountFragmentViewModel @Inject constructor(
 
     private suspend fun beginSignInGoogleLegacy(googleLegacySignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) {
         val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
-        val token = lastSignedInAccount?.idToken
-        if (token == null) {
+        val idToken = lastSignedInAccount?.idToken
+        val email = lastSignedInAccount?.email
+        if (idToken == null || email == null) {
             try {
+                val nonce = UUID.randomUUID().toString()
                 val request = GetSignInIntentRequest.builder()
                     .setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
+                    .setNonce()
                     .build()
                 val signInIntent = Identity.getSignInClient(context).getSignInIntent(request).await()
                 val intentSenderRequest = IntentSenderRequest.Builder(signInIntent.intentSender).build()
@@ -84,12 +89,8 @@ class AccountFragmentViewModel @Inject constructor(
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google Legacy")
             }
         } else {
-            signInWithGoogleToken(token)
+            signInWithGoogleToken(email = email, idToken = idToken)
         }
-    }
-
-    private suspend fun signInWithGoogleToken(token: String) {
-        accountAuth.signInWithGoogleToken(token)
     }
 
     fun onGoogleOneTapSignInResult(result: ActivityResult, googleLegacySignInLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>) {
@@ -115,6 +116,10 @@ class AccountFragmentViewModel @Inject constructor(
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to get sign in credentials from Google Legacy result.")
             }
         }
+    }
+
+    private suspend fun signInWithGoogleToken(email: String, idToken: String) {
+        accountAuth.tokenUsingAuthorizationCode(authorizationCode = idToken, email = email, clientId = Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
     }
 
     private suspend fun onGoogleSignInResult(result: ActivityResult) {

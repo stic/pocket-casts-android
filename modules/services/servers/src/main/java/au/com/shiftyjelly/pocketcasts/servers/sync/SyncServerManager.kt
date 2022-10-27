@@ -27,6 +27,7 @@ import retrofit2.Retrofit
 import timber.log.Timber
 import java.io.File
 import java.net.HttpURLConnection
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -48,9 +49,35 @@ open class SyncServerManager @Inject constructor(
         return login(email, password, "sonos")
     }
 
-    suspend fun loginGoogle(token: String): String {
-        val response = server.loginGoogle("Bearer $token")
-        return response.token ?: ""
+    suspend fun loginGoogle(token: String): LoginResponse {
+        return server.loginGoogle("Bearer $token")
+    }
+
+    suspend fun loginPocketCasts(email: String, password: String): AuthorizeResponse {
+        val state = UUID.randomUUID().toString()
+        val request = AuthorizeRequest(
+            clientId = Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID,
+            state = state,
+            email = email,
+            password = password
+        )
+        val response = server.loginPocketCasts(request)
+        if (response.state != state) {
+            throw Exception("State returned from the Pocket Casts login was different.")
+        }
+        return response
+    }
+
+    suspend fun tokenUsingAuthorizationCode(code: String, clientId: String): TokenResponse {
+        return server.loginToken(
+            request = TokenRequest.buildAuthorizationRequest(code = code, clientId = clientId)
+        )
+    }
+
+    suspend fun tokenUsingRefreshToken(refreshToken: String, clientId: String): TokenResponse {
+        return server.loginToken(
+            request = TokenRequest.buildRefreshRequest(refreshToken = refreshToken, clientId = clientId)
+        )
     }
 
     fun emailChange(newEmail: String, password: String): Single<UserChangeResponse> {
