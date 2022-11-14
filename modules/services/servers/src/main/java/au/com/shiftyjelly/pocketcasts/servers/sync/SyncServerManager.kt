@@ -1,7 +1,9 @@
 package au.com.shiftyjelly.pocketcasts.servers.sync
 
+import android.content.Context
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
+import au.com.shiftyjelly.pocketcasts.localization.R
 import au.com.shiftyjelly.pocketcasts.models.entity.Folder
 import au.com.shiftyjelly.pocketcasts.models.entity.Playlist
 import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
@@ -13,6 +15,7 @@ import au.com.shiftyjelly.pocketcasts.servers.di.SyncServerCache
 import au.com.shiftyjelly.pocketcasts.servers.di.SyncServerRetrofit
 import au.com.shiftyjelly.pocketcasts.utils.extensions.parseIsoDate
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.BackpressureStrategy
 import io.reactivex.Completable
 import io.reactivex.Flowable
@@ -24,7 +27,6 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
-import timber.log.Timber
 import java.io.File
 import java.net.HttpURLConnection
 import java.util.UUID
@@ -36,36 +38,34 @@ open class SyncServerManager @Inject constructor(
     @SyncServerRetrofit retrofit: Retrofit,
     val settings: Settings,
     @SyncServerCache val cache: Cache,
-    private val analyticsTracker: AnalyticsTrackerWrapper
+    private val analyticsTracker: AnalyticsTrackerWrapper,
+    @ApplicationContext private val context: Context
 ) {
 
     val server = retrofit.create(SyncServer::class.java)
 
-    fun loginMobile(email: String, password: String): Single<String> {
-        return login(email, password, "mobile")
+    companion object {
+        const val SCOPE = "mobile"
     }
 
-    fun loginSonos(email: String, password: String): Single<String> {
-        return login(email, password, "sonos")
+    sealed class SyncServerResponse<T>(val data: T?, val message: String?) {
+        class Success<T>(data: T) : SyncServerResponse<T>(data, null)
+        class Error<T>(message: String) : SyncServerResponse<T>(null, message)
     }
 
-    suspend fun loginGoogle(token: String): LoginResponse {
-        return server.loginGoogle("Bearer $token")
-    }
-
-    suspend fun loginPocketCasts(email: String, password: String): AuthorizeResponse {
-        val state = UUID.randomUUID().toString()
-        val request = AuthorizeRequest(
-            clientId = Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID,
-            state = state,
-            email = email,
-            password = password
-        )
-        val response = server.loginPocketCasts(request)
-        if (response.state != state) {
-            throw Exception("State returned from the Pocket Casts login was different.")
+    suspend fun userRegister(email: String, password: String): SyncServerResponse<UserRegisterResponse> {
+        return try {
+            val userResponse = server.userRegister(UserRegisterRequest(email = email, password = password, scope = SCOPE))
+            SyncServerResponse.Success(userResponse)
+        } catch (e: Exception) {
+            val errorMessage = (e as? HttpException)?.parseErrorMessageLocalized(context) ?: context.resources.getString(R.string.error_login_failed)
+            SyncServerResponse.Error(errorMessage)
         }
-        return response
+    }
+
+    suspend fun loginPocketCasts(email: String, password: String): LoginResponse {
+        val request = LoginRequest(email = email, password = password)
+        return server.loginPocketCasts(request)
     }
 
     suspend fun tokenUsingAuthorizationCode(code: String, clientId: String): TokenResponse {
@@ -78,6 +78,11 @@ open class SyncServerManager @Inject constructor(
         return server.loginToken(
             request = TokenRequest.buildRefreshRequest(refreshToken = refreshToken, clientId = clientId)
         )
+    }
+
+    suspend fun userUuid(): String {
+        val accessToken = settings.getSyncTokenSuspend() ?: throw SecurityException("Access token could not available.")
+        return server.userId(addBearer(accessToken)).userUuid
     }
 
     fun emailChange(newEmail: String, password: String): Single<UserChangeResponse> {
@@ -314,12 +319,6 @@ open class SyncServerManager @Inject constructor(
         cache.evictAll()
     }
 
-    fun cancelSupporterSubscription(subscriptionUuid: String): Single<Response<Void>> {
-        return getCacheTokenOrLogin {
-            server.cancelSubscription(addBearer(it), SupporterCancelRequest(subscriptionUuid))
-        }
-    }
-
     private suspend fun <T : Any> getCacheTokenOrLoginSuspend(serverCall: suspend (token: String) -> T): T {
         if (settings.isLoggedIn()) {
             return try {
@@ -364,19 +363,6 @@ open class SyncServerManager @Inject constructor(
             model = Settings.SYNC_API_MODEL,
             version = Settings.SYNC_API_VERSION
         )
-    }
-
-    private fun login(email: String, password: String, scope: String): Single<String> {
-        val request = LoginRequest(email, password, scope)
-        return server.login(request)
-            .map { response ->
-                val token = response.token
-                if (token.isNullOrBlank()) {
-                    throw RuntimeException("Failed to get token.")
-                }
-                token
-            }
-            .doOnError { Timber.e(it) }
     }
 
     private suspend fun refreshTokenSuspend(): String {

@@ -89,7 +89,7 @@ class AccountFragmentViewModel @Inject constructor(
                 LogBuffer.e(LogBuffer.TAG_SINGLE_SIGN_ON, e, "Unable to sign in with Google Legacy")
             }
         } else {
-            signInWithGoogleToken(email = email, idToken = idToken)
+            accountAuth.signInWithGoogleToken(email = email, idToken = idToken)
         }
     }
 
@@ -118,13 +118,10 @@ class AccountFragmentViewModel @Inject constructor(
         }
     }
 
-    private suspend fun signInWithGoogleToken(email: String, idToken: String) {
-        accountAuth.tokenUsingAuthorizationCode(authorizationCode = idToken, email = email, clientId = Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID)
-    }
-
     private suspend fun onGoogleSignInResult(result: ActivityResult) {
         val credential = Identity.getSignInClient(context).getSignInCredentialFromIntent(result.data)
-        val token = credential.googleIdToken ?: throw Exception("Unable to sign in because no token was returned.")
-        signInWithGoogleToken(token)
+        val idToken = credential.googleIdToken ?: throw Exception("Unable to sign in because no token was returned.")
+        val email = credential.id
+        accountAuth.signInWithGoogleToken(email = email, idToken = idToken)
     }
 }

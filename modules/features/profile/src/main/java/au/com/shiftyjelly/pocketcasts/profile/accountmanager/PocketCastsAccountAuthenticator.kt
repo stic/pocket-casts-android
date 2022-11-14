@@ -78,7 +78,7 @@ class PocketCastsAccountAuthenticator(val context: Context, private val accountA
     }
 
     private suspend fun getAuthTokenLegacy(email: String, password: String): TokenResponse {
-        val response = accountAuth.authorizeWithEmailAndPassword(email = email, password = password)
+        val response = accountAuth.signInWithEmailAndPassword(email = email, password = password)
         return accountAuth.tokenUsingAuthorizationCode(response.code)
     }
 

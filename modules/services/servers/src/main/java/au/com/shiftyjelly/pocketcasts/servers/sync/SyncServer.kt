@@ -16,17 +16,18 @@ import retrofit2.http.Path
 import retrofit2.http.Url
 
 interface SyncServer {
-    @POST("/user/login")
-    fun login(@Body request: LoginRequest): Single<LoginResponse>
 
-    @POST("/user/login_google")
-    suspend fun loginGoogle(@Header("Authorization") authorization: String): LoginResponse
+    @POST("/user/register")
+    suspend fun userRegister(@Body request: UserRegisterRequest): UserRegisterResponse
 
-    @POST("/user/authorize")
-    suspend fun loginPocketCasts(@Body request: AuthorizeRequest): AuthorizeResponse
+    @POST("/user/login_pocket_casts")
+    suspend fun loginPocketCasts(@Body request: LoginRequest): LoginResponse
 
     @POST("/user/token")
     suspend fun loginToken(@Body request: TokenRequest): TokenResponse
+
+    @POST("/user/id")
+    suspend fun userId(@Header("Authorization") authorization: String): UserIdResponse
 
     @POST("/user/change_email")
     fun emailChange(@Header("Authorization") authorization: String, @Body request: EmailChangeRequest): Single<UserChangeResponse>
@@ -111,7 +112,4 @@ interface SyncServer {
 
     @POST("/subscription/promo/validate")
     fun validatePromoCode(@Body request: PromoCodeRequest): Single<PromoCodeResponse>
-
-    @POST("/subscription/cancel/web")
-    fun cancelSubscription(@Header("Authorization") authorization: String, @Body request: SupporterCancelRequest): Single<Response<Void>>
 }

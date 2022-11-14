@@ -39,33 +39,6 @@ open class ServerManager @Inject constructor(
         private const val NO_INTERNET_CONNECTION_MSG = "Check your connection and try again."
     }
 
-    fun registerWithSyncServer(email: String, password: String, callback: ServerCallback<AuthResultModel>): Call? {
-        return postToSyncServer("/security/register", email, password, null, true, authResultExtractionCallback(callback))
-    }
-
-    fun loginToSyncServer(email: String, password: String, callback: ServerCallback<AuthResultModel>): Call? {
-        return postToSyncServer("/security/login", email, password, null, true, authResultExtractionCallback(callback))
-    }
-
-    private fun authResultExtractionCallback(callback: ServerCallback<AuthResultModel>): PostCallback {
-        return object : PostCallback, ServerFailure by callback {
-            override fun onSuccess(data: String?, response: ServerResponse) {
-                try {
-                    if (data == null) {
-                        throw Exception("Response empty")
-                    }
-                    val jsonData = JSONObject(data)
-                    val token = jsonData.getString("token")
-                    val uuid = jsonData.getString("uuid")
-                    callback.dataReturned(AuthResultModel(token = token, uuid = uuid))
-                } catch (e: JSONException) {
-                    Timber.e(e)
-                    callback.dataReturned(null)
-                }
-            }
-        }
-    }
-
     fun obtainThirdPartyToken(email: String, password: String, scope: String, callback: ServerCallback<String>) {
         val tokenRequest = ApiTokenRequest(email, password, scope)
 
