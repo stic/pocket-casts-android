@@ -6,7 +6,9 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import au.com.shiftyjelly.pocketcasts.account.AccountAuth
 import au.com.shiftyjelly.pocketcasts.account.BuildConfig
+import au.com.shiftyjelly.pocketcasts.account.SignInSource
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.utils.extensions.isGooglePlayServicesAvailableSuccess
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
@@ -26,7 +28,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class OnboardingLoginOrSignUpViewModel @Inject constructor(
-    @ApplicationContext context: Context
+    @ApplicationContext context: Context,
+    private val accountAuth: AccountAuth
 ) : AndroidViewModel(context as Application) {
 
     val showContinueWithGoogleButton =
@@ -75,14 +78,13 @@ class OnboardingLoginOrSignUpViewModel @Inject constructor(
             Timber.i("Using legacy Google Sign-In")
             val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
             val idToken = lastSignedInAccount?.idToken
-            val email = lastSignedInAccount?.email
-            if (idToken == null || email == null) {
+            if (idToken == null) {
                 val request = GetSignInIntentRequest.builder().setServerClientId(Settings.GOOGLE_SIGN_IN_SERVER_CLIENT_ID).build()
                 val signInIntent = Identity.getSignInClient(context).getSignInIntent(request).await()
                 val intentSenderRequest = IntentSenderRequest.Builder(signInIntent.intentSender).build()
                 onSuccess(intentSenderRequest)
             } else {
-                signInWithGoogleToken(email = email, idToken = idToken)
+                signInWithGoogleToken(idToken = idToken)
             }
         } catch (ex: Exception) {
             LogBuffer.e(LogBuffer.TAG_CRASH, ex, "Unable to sign in with legacy Google Sign-In")
@@ -131,13 +133,10 @@ class OnboardingLoginOrSignUpViewModel @Inject constructor(
     private suspend fun onGoogleSignInResult(result: ActivityResult) {
         val credential = Identity.getSignInClient(context).getSignInCredentialFromIntent(result.data)
         val idToken = credential.googleIdToken ?: throw Exception("Unable to sign in because no token was returned.")
-        val email = credential.id
-        signInWithGoogleToken(email = email, idToken = idToken)
+        signInWithGoogleToken(idToken = idToken)
     }
 
-    private fun signInWithGoogleToken(email: String, idToken: String) {
-        Timber.i("signInWithGoogleToken idToken: $idToken email: $email")
-        // Todo send the Google ID token to the server, this will be done in a future change
-        // accountAuth.signInWithGoogleToken(email = email, idToken = idToken)
+    private suspend fun signInWithGoogleToken(idToken: String) {
+        accountAuth.signInWithGoogle(idToken = idToken, signInSource = SignInSource.Onboarding)
     }
 }

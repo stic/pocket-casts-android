@@ -11,8 +11,16 @@ import au.com.shiftyjelly.pocketcasts.models.to.StatsBundle
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.servers.di.SyncServerCache
 import au.com.shiftyjelly.pocketcasts.servers.di.SyncServerRetrofit
+import au.com.shiftyjelly.pocketcasts.servers.extensions.isUnauthorized
 import au.com.shiftyjelly.pocketcasts.servers.sync.history.HistoryYearResponse
 import au.com.shiftyjelly.pocketcasts.servers.sync.history.HistoryYearSyncRequest
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginGoogleRequest
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginGoogleResponse
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginRequest
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginResponse
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginTokenRequest
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.LoginTokenResponse
+import au.com.shiftyjelly.pocketcasts.servers.sync.login.ServerLoginException
 import au.com.shiftyjelly.pocketcasts.utils.extensions.parseIsoDate
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import io.reactivex.BackpressureStrategy
@@ -23,10 +31,10 @@ import io.reactivex.Single
 import okhttp3.Cache
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
-import timber.log.Timber
 import java.io.File
 import java.net.HttpURLConnection
 import javax.inject.Inject
@@ -40,14 +48,33 @@ open class SyncServerManager @Inject constructor(
     private val analyticsTracker: AnalyticsTrackerWrapper
 ) {
 
-    val server = retrofit.create(SyncServer::class.java)
+    private val server: SyncServer = retrofit.create(SyncServer::class.java)
 
-    fun loginMobile(email: String, password: String): Single<String> {
-        return login(email, password, "mobile")
+    suspend fun login(email: String, password: String): LoginResponse {
+        val request = LoginRequest(email = email, password = password)
+        val response = server.login(request)
+        val body = response.body()
+        if (response.isSuccessful && body != null) {
+            return body
+        } else if (response.isUnauthorized) {
+            val errorBody = response.errorBody()?.string() ?: "{}"
+            val errorJson = JSONObject(errorBody)
+            val errorMessageId = errorJson.optString("errorMessageId").ifEmpty { null }
+            val errorMessage = errorJson.optString("errorMessage").ifEmpty { null }
+            throw ServerLoginException(errorMessageId = errorMessageId, errorMessage = errorMessage)
+        } else {
+            throw Exception("Server login call failed.")
+        }
     }
 
-    fun loginSonos(email: String, password: String): Single<String> {
-        return login(email, password, "sonos")
+    suspend fun loginGoogle(idToken: String): LoginGoogleResponse {
+        val request = LoginGoogleRequest(idToken)
+        return server.loginGoogle(request)
+    }
+
+    suspend fun loginToken(refreshToken: String): LoginTokenResponse {
+        val request = LoginTokenRequest(refreshCode = refreshToken)
+        return server.loginToken(request)
     }
 
     fun emailChange(newEmail: String, password: String): Single<UserChangeResponse> {
@@ -309,7 +336,7 @@ open class SyncServerManager @Inject constructor(
                 serverCall(token)
             } catch (ex: Exception) {
                 // refresh invalid
-                if (isInvalidTokenError(ex)) {
+                if (isHttpUnauthorized(ex)) {
                     val token = refreshTokenSuspend()
                     serverCall(token)
                 } else {
@@ -328,7 +355,7 @@ open class SyncServerManager @Inject constructor(
                 .flatMap { token -> serverCall(token) }
                 // refresh invalid
                 .onErrorResumeNext { throwable ->
-                    return@onErrorResumeNext if (isInvalidTokenError(throwable)) {
+                    return@onErrorResumeNext if (isHttpUnauthorized(throwable)) {
                         refreshToken().flatMap { token -> serverCall(token) }
                     }
                     // re-throw this error because it's not recoverable from here
@@ -348,19 +375,6 @@ open class SyncServerManager @Inject constructor(
         )
     }
 
-    private fun login(email: String, password: String, scope: String): Single<String> {
-        val request = LoginRequest(email, password, scope)
-        return server.login(request)
-            .map { response ->
-                val token = response.token
-                if (token.isNullOrBlank()) {
-                    throw RuntimeException("Failed to get token.")
-                }
-                token
-            }
-            .doOnError { Timber.e(it) }
-    }
-
     private suspend fun refreshTokenSuspend(): String {
         settings.invalidateToken()
         return settings.getSyncTokenSuspend() ?: throw Exception("Failed to get refresh token")
@@ -374,7 +388,7 @@ open class SyncServerManager @Inject constructor(
             }
     }
 
-    private fun isInvalidTokenError(throwable: Throwable?): Boolean {
+    private fun isHttpUnauthorized(throwable: Throwable?): Boolean {
         return throwable is HttpException && throwable.code() == 401
     }
 

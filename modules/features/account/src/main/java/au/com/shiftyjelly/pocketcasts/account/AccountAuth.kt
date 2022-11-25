@@ -8,12 +8,14 @@ import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
 import au.com.shiftyjelly.pocketcasts.analytics.TracksAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.localization.helper.LocaliseHelper
 import au.com.shiftyjelly.pocketcasts.preferences.AccountConstants
+import au.com.shiftyjelly.pocketcasts.preferences.AccountConstants.SignInType
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.refresh.RefreshPodcastsThread
 import au.com.shiftyjelly.pocketcasts.servers.ServerCallback
 import au.com.shiftyjelly.pocketcasts.servers.ServerManager
 import au.com.shiftyjelly.pocketcasts.servers.model.AuthResultModel
+import au.com.shiftyjelly.pocketcasts.servers.sync.SyncServerManager
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ import au.com.shiftyjelly.pocketcasts.localization.R as LR
 class AccountAuth @Inject constructor(
     private val settings: Settings,
     private val serverManager: ServerManager,
+    private val syncServerManager: SyncServerManager,
     private val podcastManager: PodcastManager,
     private val analyticsTracker: AnalyticsTrackerWrapper,
     @ApplicationContext private val context: Context
@@ -46,7 +49,7 @@ class AccountAuth @Inject constructor(
         return withContext(Dispatchers.IO) {
             val authResult = loginToSyncServer(email, password)
             if (authResult is AuthResult.Success) {
-                signInSuccessful(email, password, authResult.result)
+                signInWithEmailPasswordSuccessful(email, password, authResult.result)
             }
             trackSignIn(authResult, signInSource)
             authResult
@@ -71,7 +74,7 @@ class AccountAuth @Inject constructor(
         return withContext(Dispatchers.IO) {
             val authResult = registerWithSyncServer(email, password)
             if (authResult is AuthResult.Success) {
-                signInSuccessful(email, password, authResult.result)
+                signInWithEmailPasswordSuccessful(email, password, authResult.result)
             }
             authResult
         }
@@ -172,26 +175,75 @@ class AccountAuth @Inject constructor(
         )
     }
 
-    private suspend fun signInSuccessful(email: String, password: String, authResult: AuthResultModel?) {
-        LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Signed in successfully to $email")
-        // Store details in android account manager
-        if (authResult?.token != null && authResult.token?.isNotEmpty() == true) {
-            LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Saving $email to account manager")
-            val account = Account(email, AccountConstants.ACCOUNT_TYPE)
-            val accountManager = AccountManager.get(context)
-            accountManager.addAccountExplicitly(account, password, null)
-            accountManager.setAuthToken(account, AccountConstants.TOKEN_TYPE, authResult.token)
-            accountManager.setUserData(account, AccountConstants.UUID, authResult.uuid)
-
-            settings.setUsedAccountManager(true)
+    private suspend fun signInWithEmailPasswordSuccessful(email: String, password: String, authResult: AuthResultModel?) {
+        val token = authResult?.token
+        val uuid = authResult?.uuid
+        if (token != null && token.isNotEmpty() && uuid != null) {
+            signInSuccessful(
+                email = email,
+                refreshTokenOrPassword = password,
+                accessToken = token,
+                userUuid = uuid,
+                signInType = SignInType.EmailPassword
+            )
         } else {
             LogBuffer.e(LogBuffer.TAG_BACKGROUND_TASKS, "Sign in marked as successful but we didn't get a token back.")
+            startPodcastRefresh()
         }
+    }
 
+    suspend fun signInWithGoogle(idToken: String, signInSource: SignInSource) {
+        val analyticsProperties = mapOf(KEY_SIGN_IN_SOURCE to signInSource.analyticsValue)
+        try {
+            val response = syncServerManager.loginGoogle(idToken)
+            signInSuccessful(
+                email = response.email,
+                refreshTokenOrPassword = response.refreshToken,
+                accessToken = response.accessToken,
+                userUuid = response.uuid,
+                signInType = SignInType.RefreshToken
+            )
+            analyticsTracker.track(AnalyticsEvent.USER_SIGNED_IN, analyticsProperties)
+        } catch (e: Exception) {
+            analyticsTracker.track(AnalyticsEvent.USER_SIGNIN_FAILED, analyticsProperties)
+            throw e
+        }
+    }
+
+    private suspend fun signInSuccessful(email: String, refreshTokenOrPassword: String, accessToken: String, userUuid: String, signInType: SignInType) {
+        LogBuffer.i(LogBuffer.TAG_BACKGROUND_TASKS, "Signed in successfully to $email")
+        // Store details in android account manager
+        val account = Account(email, AccountConstants.ACCOUNT_TYPE)
+        val accountManager = AccountManager.get(context)
+        accountManager.addAccountExplicitly(account, refreshTokenOrPassword, null)
+        accountManager.setAuthToken(account, AccountConstants.TOKEN_TYPE, accessToken)
+        accountManager.setUserData(account, AccountConstants.UUID, userUuid)
+        accountManager.setUserData(account, AccountConstants.SIGN_IN_TYPE_KEY, signInType.toString())
+
+        settings.setUsedAccountManager(true)
+        startPodcastRefresh()
+    }
+
+    private suspend fun startPodcastRefresh() {
         settings.setLastModified(null)
         RefreshPodcastsThread.clearLastRefreshTime()
         podcastManager.markAllPodcastsUnsynced()
         podcastManager.refreshPodcasts("login")
+    }
+
+    suspend fun refreshToken(email: String, refreshTokenOrPassword: String, signInSource: SignInSource, signInType: SignInType): String {
+        val properties = mapOf(KEY_SIGN_IN_SOURCE to signInSource.analyticsValue)
+        try {
+            val accessToken = when (signInType) {
+                SignInType.EmailPassword -> syncServerManager.login(email = email, password = refreshTokenOrPassword).token
+                SignInType.RefreshToken -> syncServerManager.loginToken(refreshToken = refreshTokenOrPassword).accessToken
+            }
+            analyticsTracker.track(AnalyticsEvent.USER_SIGNED_IN, properties)
+            return accessToken
+        } catch (ex: Exception) {
+            analyticsTracker.track(AnalyticsEvent.USER_SIGNIN_FAILED, properties)
+            throw ex
+        }
     }
 
     private fun getResourceString(stringId: Int): String {
