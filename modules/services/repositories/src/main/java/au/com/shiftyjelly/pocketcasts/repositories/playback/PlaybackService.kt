@@ -15,6 +15,7 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import androidx.core.content.ContextCompat
 import androidx.media.MediaBrowserServiceCompat
 import au.com.shiftyjelly.pocketcasts.analytics.FirebaseAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.localization.BuildConfig
@@ -129,6 +130,12 @@ open class PlaybackService : MediaBrowserServiceCompat(), CoroutineScope {
         return binder ?: LocalBinder() // We return our local binder for tests and use the media session service binder normally
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Timber.d("onTaskRemoved stopSelf")
+        super.onTaskRemoved(rootIntent)
+        stopSelf()
+    }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -142,8 +149,9 @@ open class PlaybackService : MediaBrowserServiceCompat(), CoroutineScope {
     }
 
     override fun onDestroy() {
+        Timber.d("onDestroy")
         super.onDestroy()
-
+        playbackManager.mediaSession.release()
         disposables.clear()
 
         LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Playback service destroyed")
@@ -247,6 +255,10 @@ open class PlaybackService : MediaBrowserServiceCompat(), CoroutineScope {
                 PlaybackStateCompat.STATE_PLAYING -> {
                     if (notification != null) {
                         try {
+                            ContextCompat.startForegroundService(
+                                baseContext,
+                                Intent(baseContext, this@PlaybackService.javaClass)
+                            )
                             startForeground(Settings.NotificationId.PLAYING.value, notification)
                             notificationManager.enteredForeground(notification)
                             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "startForeground state: $state")
