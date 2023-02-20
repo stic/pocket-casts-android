@@ -63,7 +63,9 @@ class PlayButtonListener @Inject constructor(
     }
 
     override fun onPauseClicked() {
-        playbackManager.pause(playbackSource = source)
+        launch {
+            playbackManager.pause(playbackSource = source)
+        }
     }
 
     override fun onPlayedClicked(episodeUuid: String) {

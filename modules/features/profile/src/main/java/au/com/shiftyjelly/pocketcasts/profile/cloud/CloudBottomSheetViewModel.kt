@@ -139,8 +139,13 @@ class CloudBottomSheetViewModel @Inject constructor(
     }
 
     fun pause() {
-        playbackManager.pause(playbackSource = source)
-        analyticsTracker.track(AnalyticsEvent.USER_FILE_PLAY_PAUSE_BUTTON_TAPPED, mapOf(OPTION_KEY to PAUSE))
+        viewModelScope.launch {
+            playbackManager.pause(playbackSource = source)
+            analyticsTracker.track(
+                AnalyticsEvent.USER_FILE_PLAY_PAUSE_BUTTON_TAPPED,
+                mapOf(OPTION_KEY to PAUSE)
+            )
+        }
     }
 
     fun trackOptionTapped(option: String) {

@@ -27,13 +27,21 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import com.google.android.exoplayer2.video.VideoSize
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.util.concurrent.TimeUnit
+import au.com.shiftyjelly.pocketcasts.repositories.playback.Player as PCPlayer
 
-class SimplePlayer(val settings: Settings, val statsManager: StatsManager, val context: Context, override val onPlayerEvent: (au.com.shiftyjelly.pocketcasts.repositories.playback.Player, PlayerEvent) -> Unit) : LocalPlayer(onPlayerEvent) {
+class SimplePlayer(
+    val settings: Settings,
+    val statsManager: StatsManager,
+    val context: Context,
+    onPlayerEvent: suspend (PCPlayer, PlayerEvent) -> Unit
+) : LocalPlayer(onPlayerEvent), CoroutineScope by CoroutineScope(Dispatchers.Default) {
 
     companion object {
         private val BUFFER_TIME_MIN_MILLIS = TimeUnit.MINUTES.toMillis(15).toInt()
@@ -82,17 +90,17 @@ class SimplePlayer(val settings: Settings, val statsManager: StatsManager, val c
         }
     }
 
-    override suspend fun isPlaying(): Boolean {
-        return withContext(Dispatchers.Main) {
+    override suspend fun isPlaying(): Boolean =
+        withContext(Dispatchers.Main) {
             player?.playWhenReady ?: false
         }
-    }
 
-    override fun handleCurrentPositionMs(): Int {
-        return player?.currentPosition?.toInt() ?: -1
-    }
+    override suspend fun handleCurrentPositionMs(): Int =
+        withContext(Dispatchers.Main) {
+            player?.currentPosition?.toInt() ?: -1
+        }
 
-    override fun handlePrepare() {
+    override suspend fun handlePrepare() {
         if (prepared) {
             return
         }
@@ -116,22 +124,27 @@ class SimplePlayer(val settings: Settings, val statsManager: StatsManager, val c
         videoChangedListener?.videoNeedsReset()
     }
 
-    override fun handlePause() {
-        player?.playWhenReady = false
-    }
-
-    override fun handlePlay() {
-        player?.playWhenReady = true
-    }
-
-    override fun handleSeekToTimeMs(positionMs: Int) {
-        if (player?.isCurrentMediaItemSeekable == false && player?.isPlaying == true) {
-            Toast.makeText(context, "Unable to seek. File headers appear to be invalid.", Toast.LENGTH_SHORT).show()
-        } else {
-            player?.seekTo(positionMs.toLong())
-            super.onSeekComplete(positionMs)
+    override suspend fun handlePause() {
+        withContext(Dispatchers.Main) {
+            player?.playWhenReady = false
         }
     }
+
+    override suspend fun handlePlay() {
+        withContext(Dispatchers.Main) {
+            player?.playWhenReady = true
+        }
+    }
+
+    override suspend fun handleSeekToTimeMs(positionMs: Int) =
+        withContext(Dispatchers.Main) {
+            if (player?.isCurrentMediaItemSeekable == false && player?.isPlaying == true) {
+                Toast.makeText(context, "Unable to seek. File headers appear to be invalid.", Toast.LENGTH_SHORT).show()
+            } else {
+                player?.seekTo(positionMs.toLong())
+                super.onSeekComplete(positionMs)
+            }
+        }
 
     override fun handleIsBuffering(): Boolean {
         return (player?.playbackState ?: Player.STATE_ENDED) == Player.STATE_BUFFERING
@@ -160,13 +173,15 @@ class SimplePlayer(val settings: Settings, val statsManager: StatsManager, val c
         return true
     }
 
-    override fun setVolume(volume: Float) {
-        player?.volume = volume
+    override suspend fun setVolume(volume: Float) {
+        withContext(Dispatchers.Main) {
+            player?.volume = volume
+        }
     }
 
     override fun setPodcast(podcast: Podcast?) {}
 
-    private fun prepare() {
+    private suspend fun prepare() {
         val trackSelector = DefaultTrackSelector(context)
 
         val minBufferMillis = if (isStreaming) BUFFER_TIME_MIN_MILLIS else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
@@ -197,30 +212,39 @@ class SimplePlayer(val settings: Settings, val statsManager: StatsManager, val c
         this.player = player
 
         setPlayerEffects()
+
         player.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
-                val episodeMetadata = EpisodeFileMetadata(filenamePrefix = episodeUuid)
-                episodeMetadata.read(tracks, settings, context)
-                onMetadataAvailable(episodeMetadata)
+                CoroutineScope(Dispatchers.Default).launch {
+                    val episodeMetadata = EpisodeFileMetadata(filenamePrefix = episodeUuid)
+                    episodeMetadata.read(tracks, settings, context)
+                    onMetadataAvailable(episodeMetadata)
+                }
             }
 
             override fun onIsLoadingChanged(isLoading: Boolean) {
-                onBufferingStateChanged()
+                CoroutineScope(Dispatchers.Default).launch {
+                    onBufferingStateChanged()
+                }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    onCompletion()
-                } else if (playbackState == Player.STATE_READY) {
-                    onBufferingStateChanged()
-                    onDurationAvailable()
+                CoroutineScope(Dispatchers.Default).launch {
+                    if (playbackState == Player.STATE_ENDED) {
+                        onCompletion()
+                    } else if (playbackState == Player.STATE_READY) {
+                        onBufferingStateChanged()
+                        onDurationAvailable()
+                    }
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                LogBuffer.e(LogBuffer.TAG_PLAYBACK, error, "Play failed.")
-                val event = PlayerEvent.PlayerError(error.message ?: "", error)
-                this@SimplePlayer.onError(event)
+                CoroutineScope(Dispatchers.Default).launch {
+                    LogBuffer.e(LogBuffer.TAG_PLAYBACK, error, "Play failed.")
+                    val event = PlayerEvent.PlayerError(error.message ?: "", error)
+                    this@SimplePlayer.onError(event)
+                }
             }
         })
 

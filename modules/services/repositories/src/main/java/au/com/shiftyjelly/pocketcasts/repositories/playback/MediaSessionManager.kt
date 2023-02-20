@@ -498,13 +498,17 @@ class MediaSessionManager(
         }
 
         override fun onPlay() {
-            logEvent("play")
-            playbackManager.playQueue(playbackSource = source)
+            launch {
+                logEvent("play")
+                playbackManager.playQueue(playbackSource = source)
+            }
         }
 
         override fun onPause() {
-            logEvent("pause")
-            playbackManager.pause(playbackSource = source)
+            launch {
+                logEvent("pause")
+                playbackManager.pause(playbackSource = source)
+            }
         }
 
         override fun onPlayFromSearch(query: String?, extras: Bundle?) {

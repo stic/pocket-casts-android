@@ -18,7 +18,6 @@ interface Player {
     val url: String?
     val episodeUuid: String?
     val name: String
-    val onPlayerEvent: (Player, PlayerEvent) -> Unit
 
     suspend fun load(currentPositionMs: Int)
     suspend fun getCurrentPositionMs(): Int
@@ -35,7 +34,7 @@ interface Player {
     fun supportsTrimSilence(): Boolean
     fun supportsVolumeBoost(): Boolean
     fun supportsVideo(): Boolean
-    fun setVolume(volume: Float)
+    suspend fun setVolume(volume: Float)
     fun setPodcast(podcast: Podcast?)
     fun setEpisode(episode: Playable)
 }

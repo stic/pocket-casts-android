@@ -30,6 +30,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
+import androidx.media.session.MediaButtonReceiver.handleIntent
 import androidx.mediarouter.media.MediaControlIntent
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
@@ -900,29 +901,38 @@ class MainActivity :
     }
 
     override fun onPlayClicked() {
-        if (playbackManager.shouldWarnAboutPlayback()) {
-            launch {
+        launch {
+            if (playbackManager.shouldWarnAboutPlayback()) {
                 // show the stream warning if the episode isn't downloaded
                 playbackManager.getCurrentEpisode()?.let { episode ->
-                    launch(Dispatchers.Main) {
-                        if (episode.isDownloaded) {
-                            playbackManager.playQueue(AnalyticsSource.MINIPLAYER)
+                    if (episode.isDownloaded) {
+                        playbackManager.playQueue(AnalyticsSource.MINIPLAYER)
+                        withContext(Dispatchers.Main) {
                             warningsHelper.showBatteryWarningSnackbarIfAppropriate()
-                        } else {
-                            warningsHelper.streamingWarningDialog(episode = episode, playbackSource = AnalyticsSource.MINIPLAYER)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            warningsHelper.streamingWarningDialog(
+                                episode = episode,
+                                playbackSource = AnalyticsSource.MINIPLAYER
+                            )
                                 .show(supportFragmentManager, "streaming dialog")
                         }
                     }
                 }
+            } else {
+                playbackManager.playQueue(AnalyticsSource.MINIPLAYER)
+                withContext(Dispatchers.Main) {
+                    warningsHelper.showBatteryWarningSnackbarIfAppropriate()
+                }
             }
-        } else {
-            playbackManager.playQueue(AnalyticsSource.MINIPLAYER)
-            warningsHelper.showBatteryWarningSnackbarIfAppropriate()
         }
     }
 
     override fun onPauseClicked() {
-        playbackManager.pause(playbackSource = AnalyticsSource.MINIPLAYER)
+        launch {
+            playbackManager.pause(playbackSource = AnalyticsSource.MINIPLAYER)
+        }
     }
 
     override fun onSkipBackwardClicked() {
@@ -1125,8 +1135,10 @@ class MainActivity :
                     false
                 ) == true || intent.extras?.getBoolean("handled_by_nga", false) == true
             ) {
-                // This is what the assistant sends us when it doesn't know what to do and just opens the app. Assume the user wants to play.
-                playbackManager.playQueue()
+                launch {
+                    // This is what the assistant sends us when it doesn't know what to do and just opens the app. Assume the user wants to play.
+                    playbackManager.playQueue()
+                }
             }
         } catch (e: Exception) {
             Timber.e(e)

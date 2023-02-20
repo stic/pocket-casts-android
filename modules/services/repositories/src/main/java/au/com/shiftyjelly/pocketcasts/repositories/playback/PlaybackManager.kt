@@ -81,6 +81,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.min
+import kotlin.random.Random
 import au.com.shiftyjelly.pocketcasts.images.R as IR
 import au.com.shiftyjelly.pocketcasts.localization.R as LR
 
@@ -121,6 +122,8 @@ open class PlaybackManager @Inject constructor(
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Default
 
+    private val playbackStateMutex = Mutex()
+
     private val focusManager: FocusManager by lazy {
         FocusManager(settings, application).apply {
             focusChangeListener = this@PlaybackManager
@@ -155,6 +158,8 @@ open class PlaybackManager @Inject constructor(
     var lastLoadedFromPodcastOrPlaylistUuid: String? = null
 
     private val resumptionHelper = ResumptionHelper(settings)
+
+    private val focusMutex = Mutex()
 
     var episodeSubscription: Disposable? = null
 
@@ -343,15 +348,17 @@ open class PlaybackManager @Inject constructor(
     }
 
     fun playPause(playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
-        if (isPlaying()) {
-            pause(playbackSource = playbackSource)
-        } else {
-            playQueue(playbackSource)
+        launch {
+            if (isPlaying()) {
+                pause(playbackSource = playbackSource)
+            } else {
+                playQueue(playbackSource)
+            }
         }
     }
 
-    fun playQueue(playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
-        launch {
+    suspend fun playQueue(playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
+        withContext(Dispatchers.Default) {
             if (upNextQueue.currentEpisode != null) {
                 loadEpisodeWhenRequired(playbackSource)
             }
@@ -503,38 +510,40 @@ open class PlaybackManager @Inject constructor(
         }
     }
 
-    fun pause(transientLoss: Boolean = false, playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
-        if (!transientLoss) {
-            focusManager.giveUpAudioFocus()
-            playbackStateRelay.blockingFirst().let { playbackState ->
-                playbackStateRelay.accept(playbackState.copy(transientLoss = false))
+    suspend fun pause(transientLoss: Boolean = false, playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
+        playbackStateMutex.withLock {
+            if (!transientLoss) {
+                focusManager.giveUpAudioFocus()
+                withContext(Dispatchers.Main) {
+                    playbackStateRelay.blockingFirst().let { playbackState ->
+                        playbackStateRelay.accept(playbackState.copy(transientLoss = false))
+                    }
+                }
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Paused - Not transient")
+                trackPlayback(AnalyticsEvent.PLAYBACK_PAUSE, playbackSource)
+            } else {
+                withContext(Dispatchers.Main) {
+                    playbackStateRelay.blockingFirst().let { playbackState ->
+                        playbackStateRelay.accept(playbackState.copy(transientLoss = true))
+                    }
+                }
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Paused - Transient")
             }
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Paused - Not transient")
-            trackPlayback(AnalyticsEvent.PLAYBACK_PAUSE, playbackSource)
-        } else {
-            playbackStateRelay.blockingFirst().let { playbackState ->
-                playbackStateRelay.accept(playbackState.copy(transientLoss = true))
-            }
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Paused - Transient")
-        }
 
-        cancelUpdateTimer()
+            cancelUpdateTimer()
 
-        launch {
             player?.pause()
         }
     }
 
-    fun stopAsync(isAudioFocusFailed: Boolean = false, playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
+    fun stopAsync(playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
         launch {
-            if (!isAudioFocusFailed) {
-                trackPlayback(AnalyticsEvent.PLAYBACK_STOP, playbackSource)
-            }
+            trackPlayback(AnalyticsEvent.PLAYBACK_STOP, playbackSource)
             stop()
         }
     }
 
-    suspend fun stop() {
+    private suspend fun stop() {
         LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Stopping playback")
 
         cancelUpdateTimer()
@@ -1192,49 +1201,67 @@ open class PlaybackManager @Inject constructor(
         }
     }
 
-    override fun onFocusGain(shouldResume: Boolean) {
-        val lastPlayingTime = focusWasPlaying
-        if (shouldResume && lastPlayingTime != null) {
-            val timeout = Date(lastPlayingTime.time + MAX_TIME_WITHOUT_FOCUS_FOR_RESUME)
-            if (Date().before(timeout)) {
-                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained, resuming playback")
-                playQueue()
-            } else {
-                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained but too much time has passed to resume")
+    override suspend fun onFocusGain(shouldResume: Boolean) {
+        val r = Random.nextInt(1000)
+        Timber.e("TEST123, onFocusGain, $r")
+        focusMutex.withLock {
+            Timber.e("TEST123, inside mutex onFocusGain, $r")
+            val lastPlayingTime = focusWasPlaying
+            if (shouldResume && lastPlayingTime != null) {
+                val timeout = Date(lastPlayingTime.time + MAX_TIME_WITHOUT_FOCUS_FOR_RESUME)
+                if (Date().before(timeout)) {
+                    LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained, resuming playback")
+                    playQueue()
+                } else {
+                    LogBuffer.i(
+                        LogBuffer.TAG_PLAYBACK,
+                        "Focus gained but too much time has passed to resume"
+                    )
+                }
             }
-        }
 
-        player?.setVolume(VOLUME_NORMAL)
+            player?.setVolume(VOLUME_NORMAL)
 
-        focusWasPlaying = null
-    }
-
-    override fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean) {
-        val player = player
-        if (player == null || player.isRemote) {
-            return
-        }
-        // if we are playing but can't just reduce the volume then play when focus gained
-        val playing = isPlaying()
-        if (!mayDuck && playing) {
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
-            focusWasPlaying = Date()
-
-            pause(transientLoss = transientLoss, playbackSource = AnalyticsSource.AUTO_PAUSE)
-        } else {
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost not playing")
             focusWasPlaying = null
-        }
 
-        // check if we need to reduce the volume
-        if (focusManager.canDuck()) {
-            player.setVolume(VOLUME_DUCK)
+            Timber.e("TEST123, end of mutex onFocusGain, $r")
         }
     }
 
-    override fun onFocusRequestFailed() {
-        LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Could not get audio focus, stopping")
-        stopAsync(isAudioFocusFailed = true)
+    override suspend fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean) {
+        val r = Random.nextInt(1000)
+        Timber.e("TEST123, onFocusLoss, $r")
+        focusMutex.withLock {
+            Timber.e("TEST123, inside mutex onFocusLoss, $r")
+            val player = player
+            if (player == null || player.isRemote) {
+                return
+            }
+            // if we are playing but can't just reduce the volume then play when focus gained
+            val playing = isPlaying()
+            if (!mayDuck && playing) {
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
+                focusWasPlaying = Date()
+
+                pause(transientLoss = transientLoss, playbackSource = AnalyticsSource.AUTO_PAUSE)
+            } else {
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost not playing")
+                focusWasPlaying = null
+            }
+
+            // check if we need to reduce the volume
+            if (focusManager.canDuck()) {
+                player.setVolume(VOLUME_DUCK)
+            }
+            Timber.e("TEST123, end mutex onFocusLoss, $r")
+        }
+    }
+
+    override suspend fun onFocusRequestFailed() {
+        focusMutex.withLock {
+            LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Could not get audio focus, stopping")
+            stop()
+        }
     }
 
     override fun onAudioBecomingNoisy() {
@@ -1242,9 +1269,14 @@ open class PlaybackManager @Inject constructor(
         if (player == null || player.isRemote) {
             return
         }
-        LogBuffer.i(LogBuffer.TAG_PLAYBACK, "System fired 'Audio Becoming Noisy' event, pausing playback.")
-        pause(playbackSource = AnalyticsSource.AUTO_PAUSE)
-        focusWasPlaying = null
+        launch {
+            LogBuffer.i(
+                LogBuffer.TAG_PLAYBACK,
+                "System fired 'Audio Becoming Noisy' event, pausing playback."
+            )
+            pause(playbackSource = AnalyticsSource.AUTO_PAUSE)
+            focusWasPlaying = null
+        }
     }
 
     /** PRIVATE METHODS  */
@@ -1666,10 +1698,10 @@ open class PlaybackManager @Inject constructor(
         }
     }
 
-    private fun onPlayerEvent(player: Player, event: PlayerEvent) {
+    private suspend fun onPlayerEvent(player: Player, event: PlayerEvent) {
         if (this.player != player) return
 
-        launch {
+        withContext(Dispatchers.Default) {
             Timber.d("Player %s event %s", player, event)
             when (event) {
                 is PlayerEvent.Completion -> onCompletion(event.episodeUUID)

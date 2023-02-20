@@ -7,10 +7,13 @@ import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsSource
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class PlayerBroadcastReceiver : BroadcastReceiver() {
+class PlayerBroadcastReceiver : BroadcastReceiver(), CoroutineScope by CoroutineScope(Dispatchers.Default) {
 
     companion object {
         const val INTENT_ACTION_REFRESH_PODCASTS = "au.com.shiftyjelly.pocketcasts.action.REFRESH_PODCASTS"
@@ -61,11 +64,15 @@ class PlayerBroadcastReceiver : BroadcastReceiver() {
     }
 
     private fun pause() {
-        playbackManager.pause(playbackSource = playbackSource)
+        launch {
+            playbackManager.pause(playbackSource = playbackSource)
+        }
     }
 
     private fun play() {
-        playbackManager.playQueue(playbackSource = playbackSource)
+        launch {
+            playbackManager.playQueue(playbackSource = playbackSource)
+        }
     }
 
     private fun playNext() {

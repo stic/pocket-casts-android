@@ -495,28 +495,34 @@ class PlayerHeaderFragment : BaseFragment(), PlayerClickListener {
     }
 
     override fun onPlayClicked() {
-        if (playbackManager.isPlaying()) {
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Pause clicked in player")
-            playbackManager.pause(playbackSource = playbackSource)
-        } else {
-            if (playbackManager.shouldWarnAboutPlayback()) {
-                launch {
+        launch {
+            if (playbackManager.isPlaying()) {
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Pause clicked in player")
+                playbackManager.pause(playbackSource = playbackSource)
+            } else {
+                if (playbackManager.shouldWarnAboutPlayback()) {
                     // show the stream warning if the episode isn't downloaded
                     playbackManager.getCurrentEpisode()?.let { episode ->
                         launch(Dispatchers.Main) {
                             if (episode.isDownloaded) {
                                 viewModel.play()
-                                warningsHelper.showBatteryWarningSnackbarIfAppropriate(snackbarParentView = view)
+                                warningsHelper.showBatteryWarningSnackbarIfAppropriate(
+                                    snackbarParentView = view
+                                )
                             } else {
-                                warningsHelper.streamingWarningDialog(episode = episode, snackbarParentView = view, playbackSource = playbackSource)
+                                warningsHelper.streamingWarningDialog(
+                                    episode = episode,
+                                    snackbarParentView = view,
+                                    playbackSource = playbackSource
+                                )
                                     .show(parentFragmentManager, "streaming dialog")
                             }
                         }
                     }
+                } else {
+                    viewModel.play()
+                    warningsHelper.showBatteryWarningSnackbarIfAppropriate(snackbarParentView = view)
                 }
-            } else {
-                viewModel.play()
-                warningsHelper.showBatteryWarningSnackbarIfAppropriate(snackbarParentView = view)
             }
         }
     }

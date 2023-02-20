@@ -20,13 +20,22 @@ import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManager
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import com.google.android.gms.common.images.WebImage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 
-class CastPlayer(val context: Context, override val onPlayerEvent: (Player, PlayerEvent) -> Unit) : Player {
+class CastPlayer(
+    val context: Context,
+    onPlayerEvent: suspend (Player, PlayerEvent) -> Unit
+) : Player, CoroutineScope {
+
+    override val coroutineContext = Dispatchers.Default
+
+    val onPlayerEvent: suspend (PlayerEvent) -> Unit = { onPlayerEvent(this, it) }
 
     private var customData: JSONObject? = null
     private var podcast: Podcast? = null
@@ -87,7 +96,7 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         }
     }
 
-    fun updateFromRemoteIfRequired() {
+    suspend fun updateFromRemoteIfRequired() {
         if (remoteEpisodeUuid != null) {
             updatePlaybackState()
         }
@@ -215,8 +224,7 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         return speed
     }
 
-    override fun setVolume(volume: Float) {
-    }
+    override suspend fun setVolume(volume: Float) {}
 
     override fun setPodcast(podcast: Podcast?) {
         this.podcast = podcast
@@ -241,7 +249,7 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         remoteMediaClient?.registerCallback(remoteMediaClientListener)
     }
 
-    private fun loadEpisode(episodeUuid: String, currentPositionMs: Int, autoPlay: Boolean) {
+    private suspend fun loadEpisode(episodeUuid: String, currentPositionMs: Int, autoPlay: Boolean) {
         if (episodeUuid == remoteEpisodeUuid && autoPlay) {
             remoteMediaClient?.play()
             return
@@ -254,7 +262,7 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         }
         val url = episode.downloadUrl ?: return
         if (episode is UserEpisode && (episode.serverStatus != UserEpisodeServerStatus.UPLOADED || episode.downloadUrl == null)) {
-            onPlayerEvent(this, PlayerEvent.PlayerError("Unable to cast local file"))
+            onPlayerEvent(PlayerEvent.PlayerError("Unable to cast local file"))
             return
         }
         val mediaInfo = buildMediaInfo(url, episode, podcast)
@@ -318,10 +326,10 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         return null
     }
 
-    private fun updatePlaybackState() {
+    private suspend fun updatePlaybackState() {
         val remoteMediaClient = remoteMediaClient
         if (remoteMediaClient == null) {
-            onPlayerEvent(this, PlayerEvent.PlayerPaused)
+            onPlayerEvent(PlayerEvent.PlayerPaused)
             return
         }
 
@@ -331,28 +339,28 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
 
         if (localEpisodeUuid == null && remoteEpisodeUuid != null) {
             Timber.d("Remote has episode while local player is null. Remote: $remoteEpisodeUuid")
-            onPlayerEvent(this, PlayerEvent.RemoteMetadataNotMatched(remoteEpisodeUuid))
+            onPlayerEvent(PlayerEvent.RemoteMetadataNotMatched(remoteEpisodeUuid))
             return
         }
 
         // Convert the remote playback states to media playback states.
         when (status) {
             MediaStatus.PLAYER_STATE_IDLE -> if (idleReason == MediaStatus.IDLE_REASON_FINISHED) {
-                onPlayerEvent(this, PlayerEvent.Completion(episodeUuid))
+                onPlayerEvent(PlayerEvent.Completion(episodeUuid))
             }
             MediaStatus.PLAYER_STATE_BUFFERING, MediaStatus.PLAYER_STATE_LOADING -> {
                 state = PlaybackStateCompat.STATE_BUFFERING
-                onPlayerEvent(this, PlayerEvent.BufferingStateChanged)
+                onPlayerEvent(PlayerEvent.BufferingStateChanged)
             }
             MediaStatus.PLAYER_STATE_PLAYING -> {
                 state = PlaybackStateCompat.STATE_PLAYING
                 setMetadataFromRemote()
-                onPlayerEvent(this, PlayerEvent.PlayerPlaying)
+                onPlayerEvent(PlayerEvent.PlayerPlaying)
             }
             MediaStatus.PLAYER_STATE_PAUSED -> {
                 state = PlaybackStateCompat.STATE_PAUSED
                 setMetadataFromRemote()
-                onPlayerEvent(this, PlayerEvent.PlayerPaused)
+                onPlayerEvent(PlayerEvent.PlayerPaused)
             }
             else -> {
                 Timber.w("Unknown Cast event $status")
@@ -361,7 +369,7 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
 
         // the MediaStatus of PLAYER_STATE_BUFFERING only reports when the media is buffering and not when it has stopped
         if (status != MediaStatus.PLAYER_STATE_BUFFERING) {
-            onPlayerEvent(this, PlayerEvent.BufferingStateChanged)
+            onPlayerEvent(PlayerEvent.BufferingStateChanged)
         }
     }
 
@@ -371,8 +379,10 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         }
         val duration = if (!isMediaLoaded) 0 else (remoteMediaClient?.streamDuration?.toInt() ?: 0)
         if (duration > 0) {
-            onPlayerEvent(this, PlayerEvent.DurationAvailable)
-            episode?.durationMs = duration
+            launch {
+                onPlayerEvent(PlayerEvent.DurationAvailable)
+                episode?.durationMs = duration
+            }
         }
     }
 
@@ -381,12 +391,16 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
             Timber.d("Remote meta data updated")
             setMetadataFromRemote()
             if (localEpisodeUuid == null) {
-                updatePlaybackState()
+                launch {
+                    updatePlaybackState()
+                }
             }
         }
 
         override fun onStatusUpdated() {
-            updatePlaybackState()
+            launch {
+                updatePlaybackState()
+            }
         }
 
         override fun onSendingRemoteMediaRequest() {}

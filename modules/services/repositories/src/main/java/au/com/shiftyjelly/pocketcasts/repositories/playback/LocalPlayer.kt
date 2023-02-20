@@ -3,6 +3,7 @@ package au.com.shiftyjelly.pocketcasts.repositories.playback
 import android.os.SystemClock
 import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
+import au.com.shiftyjelly.pocketcasts.repositories.playback.LocalPlayer.Companion.VOLUME_NORMAL
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,7 +11,11 @@ import kotlinx.coroutines.withContext
 /**
  * Manages audio focus with local media player.
  */
-abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> Unit) : Player {
+abstract class LocalPlayer(
+    onPlayerEvent: suspend (Player, PlayerEvent) -> Unit
+) : Player {
+
+    val onPlayerEvent: suspend (PlayerEvent) -> Unit = { onPlayerEvent(this, it) }
 
     companion object {
         // The volume we set the media player to seekToTimeMswhen we lose audio focus, but are allowed to reduce the volume instead of stopping playback.
@@ -45,14 +50,14 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
     override val name: String
         get() = "System"
 
-    abstract fun handlePrepare()
+    abstract suspend fun handlePrepare()
     abstract fun handleStop()
-    abstract fun handlePause()
-    abstract fun handlePlay()
-    abstract fun handleSeekToTimeMs(positionMs: Int)
+    abstract suspend fun handlePause()
+    abstract suspend fun handlePlay()
+    abstract suspend fun handleSeekToTimeMs(positionMs: Int)
     abstract fun handleIsBuffering(): Boolean
     abstract fun handleIsPrepared(): Boolean
-    abstract fun handleCurrentPositionMs(): Int
+    abstract suspend fun handleCurrentPositionMs(): Int
 
     override suspend fun load(currentPositionMs: Int) {
         withContext(Dispatchers.Main) {
@@ -79,13 +84,11 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
     }
 
     override suspend fun pause() {
-        withContext(Dispatchers.Main) {
-            if (isPlaying()) {
-                handlePause()
-                positionMs = handleCurrentPositionMs()
-            }
-            onPlayerEvent(this@LocalPlayer, PlayerEvent.PlayerPaused)
+        if (isPlaying()) {
+            handlePause()
+            positionMs = handleCurrentPositionMs()
         }
+        onPlayerEvent(PlayerEvent.PlayerPaused)
     }
 
     override suspend fun stop() {
@@ -101,8 +104,8 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
         }
     }
 
-    protected fun onError(event: PlayerEvent.PlayerError) {
-        onPlayerEvent(this, event)
+    protected suspend fun onError(event: PlayerEvent.PlayerError) {
+        onPlayerEvent(event)
     }
 
     private suspend fun playIfAllowed() {
@@ -110,7 +113,7 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
 
         // already playing?
         if (isPlaying()) {
-            onPlayerEvent(this, PlayerEvent.PlayerPlaying)
+            onPlayerEvent(PlayerEvent.PlayerPlaying)
         } else {
             // check the player is seeked to the correct position
             val playerPositionMs = getCurrentPositionMs()
@@ -120,7 +123,7 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
                 handleSeekToTimeMs(positionMs)
             }
             handlePlay()
-            onPlayerEvent(this, PlayerEvent.PlayerPlaying)
+            onPlayerEvent(PlayerEvent.PlayerPlaying)
         }
     }
 
@@ -129,7 +132,7 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
         this.seekRetryAllowed = true
     }
 
-    protected fun onSeekComplete(positionMs: Int) {
+    protected suspend fun onSeekComplete(positionMs: Int) {
         // Fix for the BLU phone. With a new media player (also after a hibernate) the MediaTek player call switches to an invalid time.
         if (positionMs < seekingToPositionMs - 5000 && seekRetryAllowed) {
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Player issue was meant to be %.3f but was %.3f", seekingToPositionMs / 1000f, positionMs / 1000f)
@@ -139,26 +142,26 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
             return
         }
         this.positionMs = positionMs
-        onPlayerEvent(this, PlayerEvent.SeekComplete(positionMs))
+        onPlayerEvent(PlayerEvent.SeekComplete(positionMs))
         LogBuffer.i(LogBuffer.TAG_PLAYBACK, "LocalPlayer onSeekComplete %.3f", positionMs / 1000f)
     }
 
-    protected fun onDurationAvailable() {
-        onPlayerEvent(this, PlayerEvent.DurationAvailable)
+    protected suspend fun onDurationAvailable() {
+        onPlayerEvent(PlayerEvent.DurationAvailable)
     }
 
-    protected fun onCompletion() {
-        onPlayerEvent(this, PlayerEvent.Completion(episodeUuid))
+    protected suspend fun onCompletion() {
+        onPlayerEvent(PlayerEvent.Completion(episodeUuid))
     }
 
-    protected fun onBufferingStateChanged() {
+    protected suspend fun onBufferingStateChanged() {
         if (isStreaming) {
-            onPlayerEvent(this, PlayerEvent.BufferingStateChanged)
+            onPlayerEvent(PlayerEvent.BufferingStateChanged)
         }
     }
 
-    protected fun onMetadataAvailable(episodeMetadata: EpisodeFileMetadata) {
-        onPlayerEvent(this, PlayerEvent.MetadataAvailable(episodeMetadata))
+    protected suspend fun onMetadataAvailable(episodeMetadata: EpisodeFileMetadata) {
+        onPlayerEvent(PlayerEvent.MetadataAvailable(episodeMetadata))
     }
 
     override suspend fun seekToTimeMs(positionMs: Int) {

@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsSource
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackState
@@ -13,6 +14,7 @@ import io.reactivex.BackpressureStrategy
 import io.reactivex.Completable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -30,13 +32,17 @@ class VideoViewModel @Inject constructor(
     private val playbackSource = AnalyticsSource.FULL_SCREEN_VIDEO
     val controlsVisible: LiveData<Boolean> get() = controlsVisibleMutable
 
-    fun play() {
-        playbackManager.playQueue(playbackSource = playbackSource)
-        startHideControlsTimer()
+    private fun play() {
+        viewModelScope.launch {
+            playbackManager.playQueue(playbackSource = playbackSource)
+            startHideControlsTimer()
+        }
     }
 
-    fun pause() {
-        playbackManager.pause(playbackSource = playbackSource)
+    private fun pause() {
+        viewModelScope.launch {
+            playbackManager.pause(playbackSource = playbackSource)
+        }
     }
 
     fun skipBackward() {

@@ -59,7 +59,12 @@ class AutoPlaybackService : PlaybackService() {
         super.onDestroy()
         Log.d(Settings.LOG_TAG_AUTO, "Auto playback service destroyed")
 
-        playbackManager.pause(transientLoss = false, playbackSource = AnalyticsSource.AUTO_PAUSE)
+        launch {
+            playbackManager.pause(
+                transientLoss = false,
+                playbackSource = AnalyticsSource.AUTO_PAUSE
+            )
+        }
     }
 
     override fun onLoadChildren(parentId: String, result: Result<List<MediaBrowserCompat.MediaItem>>) {

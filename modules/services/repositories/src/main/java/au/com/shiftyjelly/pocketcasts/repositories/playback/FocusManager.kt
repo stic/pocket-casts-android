@@ -9,12 +9,18 @@ import androidx.media.AudioFocusRequestCompat
 import androidx.media.AudioManagerCompat
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
  * Manages the focus of the player by tracking audio focus and audio noisy events.
  */
-open class FocusManager(private val settings: Settings, context: Context?) : AudioManager.OnAudioFocusChangeListener {
+open class FocusManager(
+    private val settings: Settings,
+    context: Context?
+) : AudioManager.OnAudioFocusChangeListener, CoroutineScope by CoroutineScope(Dispatchers.Default) {
 
     companion object {
         // we don't have audio focus, and can't duck
@@ -74,8 +80,10 @@ open class FocusManager(private val settings: Settings, context: Context?) : Aud
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Audio focus gained")
             return true
         } else {
-            focusChangeListener?.onFocusRequestFailed()
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Couldn't get audio focus")
+            launch {
+                focusChangeListener?.onFocusRequestFailed()
+                LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Couldn't get audio focus")
+            }
             return false
         }
     }
@@ -124,7 +132,9 @@ open class FocusManager(private val settings: Settings, context: Context?) : Aud
             val shouldResume = (isLostTransient || System.currentTimeMillis() < timeFocusLost + 120000) && !deviceRemovedWhileFocusLost
             audioFocus = AUDIO_FOCUSED
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained, should resume $shouldResume. Device removed: $deviceRemovedWhileFocusLost")
-            focusChangeListener?.onFocusGain(shouldResume)
+            launch {
+                focusChangeListener?.onFocusGain(shouldResume)
+            }
         } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
             focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
             focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
@@ -142,9 +152,13 @@ open class FocusManager(private val settings: Settings, context: Context?) : Aud
             timeFocusLost = System.currentTimeMillis()
             deviceRemovedWhileFocusLost = false
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost. AUDIOFOCUS_LOSS: %s AUDIOFOCUS_LOSS_TRANSIENT: %s AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: %s", focusChange == AudioManager.AUDIOFOCUS_LOSS, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
-            focusChangeListener?.onFocusLoss(canDuck(), isLostTransient)
+            launch {
+                focusChangeListener?.onFocusLoss(canDuck(), isLostTransient)
+            }
         } else if (focusChange == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
-            focusChangeListener?.onFocusRequestFailed()
+            launch {
+                focusChangeListener?.onFocusRequestFailed()
+            }
         } else {
             Timber.w("onAudioFocusChange: Ignoring unsupported focusChange: %d", focusChange)
         }
@@ -159,9 +173,9 @@ open class FocusManager(private val settings: Settings, context: Context?) : Aud
     }
 
     interface FocusChangeListener {
-        fun onFocusGain(shouldResume: Boolean)
-        fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean)
-        fun onFocusRequestFailed()
+        suspend fun onFocusGain(shouldResume: Boolean)
+        suspend fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean)
+        suspend fun onFocusRequestFailed()
     }
 
     private fun registerAudioDeviceListener() {

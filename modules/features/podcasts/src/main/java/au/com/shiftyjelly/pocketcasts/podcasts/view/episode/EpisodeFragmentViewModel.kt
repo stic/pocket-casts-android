@@ -265,7 +265,9 @@ class EpisodeFragmentViewModel @Inject constructor(
     ): Boolean {
         episode?.let { episode ->
             if (isPlaying.value == true) {
-                playbackManager.pause(playbackSource = source)
+                launch {
+                    playbackManager.pause(playbackSource = source)
+                }
                 return false
             } else {
                 fromListUuid?.let {

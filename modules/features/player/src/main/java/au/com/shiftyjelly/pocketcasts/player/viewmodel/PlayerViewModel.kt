@@ -370,8 +370,10 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun play() {
-        LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Play clicked in player")
-        playbackManager.playQueue(playbackSource = source)
+        launch {
+            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Play clicked in player")
+            playbackManager.playQueue(playbackSource = source)
+        }
     }
 
     fun playEpisode(uuid: String, playbackSource: AnalyticsSource = AnalyticsSource.UNKNOWN) {
