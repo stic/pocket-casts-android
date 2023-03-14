@@ -93,6 +93,10 @@ open class PlaybackService : MediaBrowserServiceCompat(), CoroutineScope {
             get() = this@PlaybackService
     }
 
+    companion object {
+        var service: PlaybackService? = null
+    }
+
     @Inject lateinit var podcastManager: PodcastManager
     @Inject lateinit var episodeManager: EpisodeManager
     @Inject lateinit var folderManager: FolderManager
@@ -139,9 +143,11 @@ open class PlaybackService : MediaBrowserServiceCompat(), CoroutineScope {
 
         mediaController = MediaControllerCompat(this, mediaSession)
         notificationManager = PlayerNotificationManagerImpl(this)
+        service = this
     }
 
     override fun onDestroy() {
+        service = null
         super.onDestroy()
 
         disposables.clear()

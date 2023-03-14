@@ -24,7 +24,9 @@ import au.com.shiftyjelly.pocketcasts.models.to.SignInState
 import au.com.shiftyjelly.pocketcasts.models.to.SubscriptionStatus
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.profile.databinding.FragmentAccountDetailsBinding
+import au.com.shiftyjelly.pocketcasts.repositories.playback.PODCASTS_ROOT
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
+import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackService
 import au.com.shiftyjelly.pocketcasts.repositories.playback.UpNextQueue
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.FolderManager
@@ -293,6 +295,7 @@ class AccountDetailsFragment : BaseFragment() {
             episodeManager.deleteDownloadedEpisodeFiles()
             episodeManager.deleteAll()
         }
+        PlaybackService.service?.notifyChildrenChanged(PODCASTS_ROOT)
 
         activity?.finish()
     }
