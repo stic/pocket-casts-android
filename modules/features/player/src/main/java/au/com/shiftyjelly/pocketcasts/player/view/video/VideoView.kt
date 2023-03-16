@@ -7,10 +7,10 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.widget.FrameLayout
+import androidx.media3.ui.AspectRatioFrameLayout
 import au.com.shiftyjelly.pocketcasts.player.R
 import au.com.shiftyjelly.pocketcasts.repositories.playback.PlaybackManager
 import au.com.shiftyjelly.pocketcasts.repositories.playback.SimplePlayer
-import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 
 class VideoView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) : FrameLayout(context, attrs, defStyleAttr), SurfaceHolder.Callback, SimplePlayer.VideoChangedListener {
 

@@ -172,7 +172,9 @@ class PlayerHeaderFragment : BaseFragment(), PlayerClickListener {
             viewModel.downloadCurrentlyPlaying()
         }
         binding.videoView.playbackManager = playbackManager
-        binding.videoView.setOnClickListener { onFullScreenVideoClick() }
+        binding.videoView.setOnClickListener {
+            onFullScreenVideoClick()
+        }
 
         with(binding.castButton) {
             CastButtonFactory.setUpMediaRouteButton(binding.root.context, this)

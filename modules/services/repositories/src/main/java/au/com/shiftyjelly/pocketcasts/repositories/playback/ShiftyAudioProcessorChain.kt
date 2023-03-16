@@ -1,10 +1,10 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessorChain
+import androidx.media3.exoplayer.audio.SonicAudioProcessor
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
-import com.google.android.exoplayer2.PlaybackParameters
-import com.google.android.exoplayer2.audio.AudioProcessor
-import com.google.android.exoplayer2.audio.AudioProcessorChain
-import com.google.android.exoplayer2.audio.SonicAudioProcessor
 import timber.log.Timber
 
 internal class ShiftyAudioProcessorChain(private val customAudio: ShiftyCustomAudio) :
@@ -30,7 +30,7 @@ internal class ShiftyAudioProcessorChain(private val customAudio: ShiftyCustomAu
     )
     private val sonicAudioProcessor = SonicAudioProcessor()
 
-    private val audioProcessors = arrayOf(lowProcessor, mediumProcessor, highProcessor, sonicAudioProcessor)
+    private val audioProcessors = arrayOf<AudioProcessor>(lowProcessor, mediumProcessor, highProcessor, sonicAudioProcessor)
     private var trimMode = TrimMode.OFF
     override fun getAudioProcessors(): Array<AudioProcessor> {
         return audioProcessors

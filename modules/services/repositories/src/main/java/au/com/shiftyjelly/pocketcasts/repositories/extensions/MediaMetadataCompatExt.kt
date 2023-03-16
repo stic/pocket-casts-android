@@ -20,10 +20,10 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.source.ConcatenatingMediaSource
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
-import com.google.android.exoplayer2.upstream.DataSource
+import androidx.media3.common.MediaItem
+import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.source.ConcatenatingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 
 /**
  * Useful extensions for [MediaMetadataCompat].

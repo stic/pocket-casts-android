@@ -2,15 +2,15 @@ package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.content.Context
 import android.os.Handler
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioCapabilities
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
 import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
-import com.google.android.exoplayer2.DefaultRenderersFactory
-import com.google.android.exoplayer2.Renderer
-import com.google.android.exoplayer2.audio.AudioCapabilities
-import com.google.android.exoplayer2.audio.AudioRendererEventListener
-import com.google.android.exoplayer2.audio.AudioSink
-import com.google.android.exoplayer2.audio.DefaultAudioSink
-import com.google.android.exoplayer2.mediacodec.MediaCodecSelector
 
 class ShiftyRenderersFactory(context: Context?, statsManager: StatsManager, private var boostVolume: Boolean) : DefaultRenderersFactory(context!!) {
     private var playbackSpeed = 0f

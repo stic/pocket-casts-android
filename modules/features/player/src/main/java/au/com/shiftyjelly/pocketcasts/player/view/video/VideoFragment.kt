@@ -49,7 +49,9 @@ class VideoFragment : Fragment(), PlayerSeekBar.OnUserSeekListener {
 
         val context = binding.videoView.context
 
-        binding.touchView.setOnClickListener { viewModel.toggleControls() }
+        binding.touchView.setOnClickListener {
+            viewModel.toggleControls()
+        }
         binding.skipBack.setOnClickListener { view ->
             val button = view as LottieAnimationView
             viewModel.skipBackward()

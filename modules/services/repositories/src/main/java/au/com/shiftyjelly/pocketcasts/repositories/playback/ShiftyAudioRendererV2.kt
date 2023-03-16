@@ -3,15 +3,15 @@ package au.com.shiftyjelly.pocketcasts.repositories.playback
 import android.content.Context
 import android.media.MediaCodec
 import android.os.Handler
-import com.google.android.exoplayer2.ExoPlaybackException
-import com.google.android.exoplayer2.Format
-import com.google.android.exoplayer2.PlaybackParameters
-import com.google.android.exoplayer2.audio.AudioRendererEventListener
-import com.google.android.exoplayer2.audio.AudioSink
-import com.google.android.exoplayer2.audio.MediaCodecAudioRenderer
-import com.google.android.exoplayer2.mediacodec.MediaCodecAdapter
-import com.google.android.exoplayer2.mediacodec.MediaCodecSelector
-import com.google.android.exoplayer2.util.MediaClock
+import androidx.media3.common.Format
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.exoplayer.ExoPlaybackException
+import androidx.media3.exoplayer.MediaClock
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import java.nio.ByteBuffer
 
 class ShiftyAudioRendererV2(
@@ -21,7 +21,8 @@ class ShiftyAudioRendererV2(
     eventHandler: Handler?,
     eventListener: AudioRendererEventListener?,
     audioSink: AudioSink,
-) : MediaCodecAudioRenderer(context, mediaCodecSelector, eventHandler, eventListener, audioSink), MediaClock {
+) : MediaCodecAudioRenderer(context, mediaCodecSelector, eventHandler, eventListener, audioSink),
+    MediaClock {
 
     private var lastSeenBufferIndex = -1
     private var lastPresentationTimeUs = 0L
