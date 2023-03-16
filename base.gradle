@@ -247,6 +247,7 @@ dependencies {
     implementation libs.media3Datasource
     implementation libs.media3Extractor
     implementation libs.media3Cast
+    implementation libs.media3Session
 
     kapt libs.moshiKotlinCompile
     kapt libs.glideCompile

@@ -254,7 +254,8 @@ project.ext {
             media3Ui: "androidx.media3:media3-ui:$versionMedia3",
             media3Datasource: "androidx.media3:media3-datasource:$versionMedia3",
             media3Extractor: "androidx.media3:media3-extractor:$versionMedia3",
-            media3Cast: "androidx.media3:media3-cast:$versionMedia3"
+            media3Cast: "androidx.media3:media3-cast:$versionMedia3",
+            media3Session: "androidx.media3:media3-session:$versionMedia3"
     ]
 
 }
