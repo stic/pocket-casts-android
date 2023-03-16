@@ -64,8 +64,10 @@ class EpisodeFileMetadata(val filenamePrefix: String? = null) {
                                 this.embeddedArtworkPath = filePath
                             }
                         } else if (frame is TextInformationFrame && TAG_TITLE == frame.id) {
+                            @Suppress("DEPRECATION")
                             this.embeddedTitle = frame.value
                         } else if (frame is TextInformationFrame && TAG_LENGTH == frame.id) {
+                            @Suppress("DEPRECATION")
                             this.embeddedLength = frame.value.toLongOrNull()
                         }
                     }
@@ -94,6 +96,7 @@ class EpisodeFileMetadata(val filenamePrefix: String? = null) {
             val subFrame = frame.getSubFrame(i)
             if (subFrame is TextInformationFrame) {
                 if ("TIT2" == subFrame.id) {
+                    @Suppress("DEPRECATION")
                     title = subFrame.value
                 }
             } else if (subFrame is UrlLinkFrame) {
