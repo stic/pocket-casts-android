@@ -5,8 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS
 import android.support.v4.media.MediaDescriptionCompat.STATUS_DOWNLOADED
 import android.support.v4.media.MediaDescriptionCompat.STATUS_NOT_DOWNLOADED
@@ -17,6 +15,8 @@ import androidx.media.utils.MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STA
 import androidx.media.utils.MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
 import androidx.media.utils.MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
 import androidx.media.utils.MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import au.com.shiftyjelly.pocketcasts.localization.helper.RelativeDateFormatter
 import au.com.shiftyjelly.pocketcasts.localization.helper.tryToLocaliseFilters
 import au.com.shiftyjelly.pocketcasts.models.entity.Episode
@@ -68,7 +68,7 @@ object AutoConverter {
     private const val THUMBNAIL_IMAGE_SIZE = 200
     private const val FULL_IMAGE_SIZE = 800
 
-    fun convertEpisodeToMediaItem(context: Context, episode: Playable, parentPodcast: Podcast, groupTrailers: Boolean = false, sourceId: String = parentPodcast.uuid): MediaBrowserCompat.MediaItem {
+    fun convertEpisodeToMediaItem(context: Context, episode: Playable, parentPodcast: Podcast, groupTrailers: Boolean = false, sourceId: String = parentPodcast.uuid): MediaItem {
         val localUri = getBitmapUriForPodcast(parentPodcast, episode, context)
 
         val extrasForEpisode = extrasForEpisode(episode)
@@ -77,58 +77,109 @@ object AutoConverter {
             extrasForEpisode.putString(EXTRA_CONTENT_STYLE_GROUP_TITLE_HINT, context.resources.getString(groupTitle))
         }
         val mediaId = AutoMediaId(episode.uuid, sourceId).toMediaId()
-        val episodeDesc = MediaDescriptionCompat.Builder()
-            .setDescription(episode.episodeDescription)
-            .setTitle(episode.title)
-            .setSubtitle(episode.getSummaryText(dateFormatter = RelativeDateFormatter(context), tintColor = Color.WHITE, showDuration = true, context = context).toString())
-            .setMediaId(mediaId)
-            .setExtras(extrasForEpisode)
-            .setIconUri(localUri)
-            .build()
+//        val episodeDesc = MediaDescriptionCompat.Builder()
+//            .setDescription(episode.episodeDescription)
+//            .setTitle(episode.title)
+//            .setSubtitle(episode.getSummaryText(dateFormatter = RelativeDateFormatter(context), tintColor = Color.WHITE, showDuration = true, context = context).toString())
+//            .setMediaId(mediaId)
+//            .setExtras(extrasForEpisode)
+//            .setIconUri(localUri)
+//            .build()
 
-        return MediaBrowserCompat.MediaItem(episodeDesc, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+        val metadata =
+            MediaMetadata.Builder()
+                .setTitle(episode.title)
+                .setSubtitle(episode.getSummaryText(dateFormatter = RelativeDateFormatter(context), tintColor = Color.WHITE, showDuration = true, context = context).toString())
+                .setIsBrowsable(true)
+                .setIsPlayable(true)
+                .setArtworkUri(localUri)
+                .setExtras(extrasForEpisode)
+                .setDescription(episode.episodeDescription)
+                .build()
+
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(metadata)
+            .setUri(episode.downloadUrl)
+            .build()
     }
 
-    fun convertPodcastToMediaItem(podcast: Podcast, context: Context): MediaBrowserCompat.MediaItem? {
+    fun convertPodcastToMediaItem(podcast: Podcast, context: Context): MediaItem? {
         return try {
             val localUri = getBitmapUriForPodcast(podcast = podcast, episode = null, context = context)
 
-            val podcastDesc = MediaDescriptionCompat.Builder()
-                .setTitle(podcast.title)
-                .setMediaId(podcast.uuid)
-                .setIconUri(localUri)
-                .build()
+//            val podcastDesc = MediaDescriptionCompat.Builder()
+//                .setTitle(podcast.title)
+//                .setMediaId(podcast.uuid)
+//                .setIconUri(localUri)
+//                .build()
+//
+//            MediaBrowserCompat.MediaItem(podcastDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
 
-            MediaBrowserCompat.MediaItem(podcastDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            val metadata =
+                MediaMetadata.Builder()
+                    .setTitle(podcast.title)
+                    .setIsBrowsable(true)
+                    .setArtworkUri(localUri)
+                    .build()
+
+            MediaItem.Builder()
+                .setMediaId(podcast.uuid)
+                .setMediaMetadata(metadata)
+                .build()
         } catch (e: Exception) {
             null
         }
     }
 
-    fun convertFolderToMediaItem(context: Context, folder: Folder): MediaBrowserCompat.MediaItem? {
+    fun convertFolderToMediaItem(context: Context, folder: Folder): MediaItem? {
         return try {
             val localUri = getBitmapUriForFolder(context, folder)
 
-            val podcastDesc = MediaDescriptionCompat.Builder()
-                .setTitle(folder.name)
-                .setMediaId(FOLDER_ROOT_PREFIX + folder.uuid)
-                .setIconUri(localUri)
-                .build()
+//            val podcastDesc = MediaDescriptionCompat.Builder()
+//                .setTitle(folder.name)
+//                .setMediaId(FOLDER_ROOT_PREFIX + folder.uuid)
+//                .setIconUri(localUri)
+//                .build()
+//
+//            MediaBrowserCompat.MediaItem(podcastDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
 
-            MediaBrowserCompat.MediaItem(podcastDesc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+            val metadata =
+                MediaMetadata.Builder()
+                    .setTitle(folder.name)
+                    .setIsBrowsable(true)
+                    .setArtworkUri(localUri)
+                    .build()
+
+            MediaItem.Builder()
+                .setMediaId(FOLDER_ROOT_PREFIX + folder.uuid)
+                .setMediaMetadata(metadata)
+                .build()
         } catch (e: Exception) {
             null
         }
     }
 
-    fun convertPlaylistToMediaItem(context: Context, playlist: Playlist): MediaBrowserCompat.MediaItem {
-        val mediaDescription = MediaDescriptionCompat.Builder()
-            .setTitle(playlist.title.tryToLocaliseFilters(context.resources))
-            .setMediaId(playlist.uuid)
-            .setIconUri(getPlaylistBitmapUri(playlist, context))
-            .build()
+    fun convertPlaylistToMediaItem(context: Context, playlist: Playlist): MediaItem {
+//        val mediaDescription = MediaDescriptionCompat.Builder()
+//            .setTitle(playlist.title.tryToLocaliseFilters(context.resources))
+//            .setMediaId(playlist.uuid)
+//            .setIconUri(getPlaylistBitmapUri(playlist, context))
+//            .build()
+//
+//        return MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
 
-        return MediaBrowserCompat.MediaItem(mediaDescription, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE)
+        val metadata =
+            MediaMetadata.Builder()
+                .setTitle(playlist.title.tryToLocaliseFilters(context.resources))
+                .setIsBrowsable(true)
+                .setArtworkUri(getPlaylistBitmapUri(playlist, context))
+                .build()
+
+        return MediaItem.Builder()
+            .setMediaId(playlist.uuid)
+            .setMediaMetadata(metadata)
+            .build()
     }
 
     fun getBitmapUriForPodcast(podcast: Podcast?, episode: Playable?, context: Context): Uri? {

@@ -186,6 +186,8 @@ project.ext {
             kotlinCoroutinesRx: "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:$versionKotlinCoroutines",
             kotlinCoroutinesTest: "org.jetbrains.kotlinx:kotlinx-coroutines-test:$versionKotlinCoroutines",
 
+            guavaCoroutinesFuture: "org.jetbrains.kotlinx:kotlinx-coroutines-guava:$versionKotlinCoroutines",
+
             // Retrofit
             retrofit: "com.squareup.retrofit2:retrofit:$versionRetrofit",
             retrofitMoshi: "com.squareup.retrofit2:converter-moshi:$versionRetrofit",
@@ -255,7 +257,7 @@ project.ext {
             media3Datasource: "androidx.media3:media3-datasource:$versionMedia3",
             media3Extractor: "androidx.media3:media3-extractor:$versionMedia3",
             media3Cast: "androidx.media3:media3-cast:$versionMedia3",
-            media3Session: "androidx.media3:media3-session:$versionMedia3"
+            media3Session: "androidx.media3:media3-session:$versionMedia3",
     ]
 
 }

@@ -248,6 +248,7 @@ dependencies {
     implementation libs.media3Extractor
     implementation libs.media3Cast
     implementation libs.media3Session
+    implementation libs.guavaCoroutinesFuture
 
     kapt libs.moshiKotlinCompile
     kapt libs.glideCompile
