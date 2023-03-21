@@ -1,6 +1,7 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.os.SystemClock
+import androidx.media3.exoplayer.ExoPlayer
 import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
@@ -10,7 +11,7 @@ import kotlinx.coroutines.withContext
 /**
  * Manages audio focus with local media player.
  */
-abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> Unit) : Player {
+abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> Unit, val exoPlayer: ExoPlayer) : Player, androidx.media3.common.Player by exoPlayer {
 
     companion object {
         // The volume we set the media player to seekToTimeMswhen we lose audio focus, but are allowed to reduce the volume instead of stopping playback.
@@ -78,21 +79,21 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
         }
     }
 
-    override suspend fun pause() {
-        withContext(Dispatchers.Main) {
-            if (isPlaying()) {
-                handlePause()
-                positionMs = handleCurrentPositionMs()
-            }
-            onPlayerEvent(this@LocalPlayer, PlayerEvent.PlayerPaused)
+    override /*suspend*/ fun pause() {
+//        withContext(Dispatchers.Main) {
+        if (isPlaying()) {
+            handlePause()
+            positionMs = handleCurrentPositionMs()
         }
+        onPlayerEvent(this@LocalPlayer, PlayerEvent.PlayerPaused)
+//        }
     }
 
-    override suspend fun stop() {
-        withContext(Dispatchers.Main) {
-            positionMs = handleCurrentPositionMs()
-            handleStop()
-        }
+    override /*suspend*/ fun stop() {
+//        withContext(Dispatchers.Main) {
+        positionMs = handleCurrentPositionMs()
+        handleStop()
+//        }
     }
 
     override suspend fun getCurrentPositionMs(): Int {

@@ -26,7 +26,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 
-class CastPlayer(val context: Context, override val onPlayerEvent: (Player, PlayerEvent) -> Unit) : Player {
+class CastPlayer(val context: Context, override val onPlayerEvent: (Player, PlayerEvent) -> Unit, val player: androidx.media3.common.Player) : Player, androidx.media3.common.Player by player {
 
     private var customData: JSONObject? = null
     private var podcast: Podcast? = null
@@ -93,10 +93,10 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         }
     }
 
-    override suspend fun isPlaying(): Boolean {
-        return withContext(Dispatchers.Main) {
-            isMediaLoaded && (remoteMediaClient?.isPlaying ?: false)
-        }
+    override /*suspend */fun isPlaying(): Boolean {
+//        return withContext(Dispatchers.Main) {
+        return isMediaLoaded && (remoteMediaClient?.isPlaying ?: false)
+//        }
     }
 
     override suspend fun bufferedUpToMs(): Int {
@@ -143,20 +143,20 @@ class CastPlayer(val context: Context, override val onPlayerEvent: (Player, Play
         }
     }
 
-    override suspend fun pause() {
-        withContext(Dispatchers.Main) {
-            if (isMediaLoaded) {
-                remoteMediaClient?.pause()
-            }
+    override /*suspend*/ fun pause() {
+//        withContext(Dispatchers.Main) {
+        if (isMediaLoaded) {
+            remoteMediaClient?.pause()
         }
+//        }
     }
 
-    override suspend fun stop() {
-        withContext(Dispatchers.Main) {
-            state = PlaybackStateCompat.STATE_STOPPED
-            remoteListenerAdded = false
-            remoteMediaClient?.unregisterCallback(remoteMediaClientListener)
-        }
+    override /*suspend*/ fun stop() {
+//        withContext(Dispatchers.Main) {
+        state = PlaybackStateCompat.STATE_STOPPED
+        remoteListenerAdded = false
+        remoteMediaClient?.unregisterCallback(remoteMediaClientListener)
+//        }
     }
 
     override fun supportsTrimSilence(): Boolean {

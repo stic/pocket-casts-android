@@ -9,7 +9,7 @@ sealed class EpisodeLocation {
     data class Downloaded(val filePath: String?) : EpisodeLocation()
 }
 
-interface Player {
+interface Player : androidx.media3.common.Player {
     var isPip: Boolean
     val isRemote: Boolean
     val isStreaming: Boolean
@@ -23,11 +23,11 @@ interface Player {
     suspend fun load(currentPositionMs: Int)
     suspend fun getCurrentPositionMs(): Int
     suspend fun play(currentPositionMs: Int)
-    suspend fun pause()
-    suspend fun stop()
+//    suspend fun pause()
+//    suspend fun stop()
     suspend fun setPlaybackEffects(playbackEffects: PlaybackEffects)
     suspend fun seekToTimeMs(positionMs: Int)
-    suspend fun isPlaying(): Boolean
+//    suspend fun isPlaying(): Boolean
     suspend fun isBuffering(): Boolean
     suspend fun durationMs(): Int?
     suspend fun bufferedUpToMs(): Int
@@ -35,7 +35,7 @@ interface Player {
     fun supportsTrimSilence(): Boolean
     fun supportsVolumeBoost(): Boolean
     fun supportsVideo(): Boolean
-    fun setVolume(volume: Float)
+//    fun setVolume(volume: Float)
     fun setPodcast(podcast: Podcast?)
     fun setEpisode(episode: Playable)
 }
