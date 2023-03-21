@@ -12,8 +12,10 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -42,6 +44,7 @@ import au.com.shiftyjelly.pocketcasts.utils.IS_RUNNING_UNDER_TEST
 import au.com.shiftyjelly.pocketcasts.utils.SchedulerProvider
 import au.com.shiftyjelly.pocketcasts.utils.SentryHelper
 import au.com.shiftyjelly.pocketcasts.utils.Util
+import au.com.shiftyjelly.pocketcasts.utils.extensions.getLaunchActivityPendingIntent
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -88,6 +91,7 @@ const val CONTENT_STYLE_GRID_ITEM_HINT_VALUE = 2
 
 private const val EPISODE_LIMIT = 100
 
+@Suppress("UNUSED_PARAMETER")
 @AndroidEntryPoint
 open class PlaybackService : MediaLibraryService(), CoroutineScope {
     inner class LocalBinder : Binder() {
@@ -108,15 +112,19 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var subscriptionManager: SubscriptionManager
 
-    var mediaController: MediaControllerCompat? = null
-        set(value) {
-            field = value
-            if (value != null) {
-                val mediaControllerCallback = MediaControllerCallback(value.metadata)
-                value.registerCallback(mediaControllerCallback)
-                this.mediaControllerCallback = mediaControllerCallback
-            }
-        }
+    private val librarySessionCallback = CustomMediaLibrarySessionCallback()
+    private lateinit var player: ExoPlayer
+    private lateinit var mediaLibrarySession: MediaLibrarySession
+
+//    var mediaController: MediaControllerCompat? = null
+//        set(value) {
+//            field = value
+//            if (value != null) {
+//                val mediaControllerCallback = MediaControllerCallback(value.metadata)
+//                value.registerCallback(mediaControllerCallback)
+//                this.mediaControllerCallback = mediaControllerCallback
+//            }
+//        }
 
     private var mediaControllerCallback: MediaControllerCallback? = null
     lateinit var notificationManager: PlayerNotificationManager
@@ -131,16 +139,36 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         return binder ?: LocalBinder() // We return our local binder for tests and use the media session service binder normally
     }
 
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        return mediaLibrarySession
+    }
+
     override fun onCreate() {
         super.onCreate()
 
         LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Playback service created")
 
-        val mediaSession = playbackManager.mediaSession
-        sessionToken = mediaSession.sessionToken
+        initializeSessionAndPlayer()
 
-        mediaController = MediaControllerCompat(this, mediaSession)
+//        val mediaSession = playbackManager.mediaSession
+//        sessionToken = mediaSession.sessionToken
+
+//        mediaController = MediaControllerCompat(this, mediaSession)
         notificationManager = PlayerNotificationManagerImpl(this)
+    }
+
+    private fun initializeSessionAndPlayer() {
+        player =
+            ExoPlayer.Builder(this)
+                .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ true)
+                .build()
+
+        val mediaSessionBuilder = MediaLibrarySession.Builder(this, player, librarySessionCallback)
+        if (!Util.isAutomotive(this)) { // We can't start activities on automotive
+            mediaSessionBuilder.setSessionActivity(this.getLaunchActivityPendingIntent())
+        }
+
+        mediaLibrarySession = mediaSessionBuilder.build()
     }
 
     override fun onDestroy() {
@@ -341,9 +369,9 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
                 return null
             }
 
-            val sessionToken = sessionToken
-            if (metadata == null || metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID).isEmpty()) return null
-            return if (state != PlaybackStateCompat.STATE_NONE && sessionToken != null) notificationDrawer.buildPlayingNotification(sessionToken) else null
+//            val sessionToken = null // sessionToken
+//            if (metadata == null || metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID).isEmpty()) return null
+            return /*if (state != PlaybackStateCompat.STATE_NONE && sessionToken != null) notificationDrawer.buildPlayingNotification(sessionToken) else*/ null
         }
     }
 
@@ -534,7 +562,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
 
         val filesItem = MediaItem.Builder()
             .setMediaId(FILES_ROOT)
-            .setMediaMetadata(downloadsMetadata)
+            .setMediaMetadata(filesMetadata)
             .build()
 
         rootItems.add(filesItem)
