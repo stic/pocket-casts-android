@@ -37,7 +37,7 @@ class VideoView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
         super.setVisibility(visibility)
         if (visibility == View.GONE) {
             isSurfaceSet = false
-            (playbackManager?.player as? SimplePlayer)?.setDisplay(null)
+            (playbackManager?.pocketCastsPlayer as? SimplePlayer)?.setDisplay(null)
         }
     }
 
@@ -50,7 +50,7 @@ class VideoView @JvmOverloads constructor(context: Context, attrs: AttributeSet?
             return
         }
 
-        val player = playbackManager?.player
+        val player = playbackManager?.pocketCastsPlayer
         if (player == null || !player.supportsVideo() || player.isRemote || player.isPip) {
             return
         }

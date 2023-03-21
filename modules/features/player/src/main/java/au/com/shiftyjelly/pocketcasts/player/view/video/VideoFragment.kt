@@ -85,7 +85,8 @@ class VideoFragment : Fragment(), PlayerSeekBar.OnUserSeekListener {
         }
 
         viewModel.playbackState.observe(viewLifecycleOwner) {
-            val newPlayer = (playbackManager.player as? SimplePlayer)?.exoPlayer
+            // FIXME find better way to get player
+            val newPlayer = (playbackManager.pocketCastsPlayer as? SimplePlayer)?.player
 
             // setPlayer returns straight away if the player is the same so calling this too much doesn't matter.
             // This ensures while the full screen player is visible, the surface isn't set from somewhere else causing

@@ -1,7 +1,7 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.os.SystemClock
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
 import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
@@ -11,7 +11,10 @@ import kotlinx.coroutines.withContext
 /**
  * Manages audio focus with local media player.
  */
-abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> Unit, val exoPlayer: ExoPlayer) : Player, androidx.media3.common.Player by exoPlayer {
+abstract class LocalPlayer(
+    override val onPlayerEvent: (PocketCastsPlayer, PlayerEvent) -> Unit,
+    player: Player,
+) : PocketCastsPlayer, Player by player {
 
     companion object {
         // The volume we set the media player to seekToTimeMswhen we lose audio focus, but are allowed to reduce the volume instead of stopping playback.
@@ -110,7 +113,10 @@ abstract class LocalPlayer(override val onPlayerEvent: (Player, PlayerEvent) -> 
         setVolume(VOLUME_NORMAL)
 
         // already playing?
-        if (isPlaying()) {
+        val isPlaying = withContext(Dispatchers.Main) {
+            isPlaying
+        }
+        if (isPlaying) {
             onPlayerEvent(this, PlayerEvent.PlayerPlaying)
         } else {
             // check the player is seeked to the correct position

@@ -1,5 +1,6 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
+import androidx.media3.common.Player
 import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
@@ -9,7 +10,7 @@ sealed class EpisodeLocation {
     data class Downloaded(val filePath: String?) : EpisodeLocation()
 }
 
-interface Player : androidx.media3.common.Player {
+interface PocketCastsPlayer : Player {
     var isPip: Boolean
     val isRemote: Boolean
     val isStreaming: Boolean
@@ -18,7 +19,7 @@ interface Player : androidx.media3.common.Player {
     val url: String?
     val episodeUuid: String?
     val name: String
-    val onPlayerEvent: (Player, PlayerEvent) -> Unit
+    val onPlayerEvent: (PocketCastsPlayer, PlayerEvent) -> Unit
 
     suspend fun load(currentPositionMs: Int)
     suspend fun getCurrentPositionMs(): Int

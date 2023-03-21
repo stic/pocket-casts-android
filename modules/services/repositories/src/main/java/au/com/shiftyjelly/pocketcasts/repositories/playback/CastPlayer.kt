@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.support.v4.media.session.PlaybackStateCompat
 import android.text.TextUtils
+import androidx.media3.common.Player
 import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
@@ -26,7 +27,11 @@ import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 
-class CastPlayer(val context: Context, override val onPlayerEvent: (Player, PlayerEvent) -> Unit, val player: androidx.media3.common.Player) : Player, androidx.media3.common.Player by player {
+class CastPlayer(
+    val context: Context,
+    override val onPlayerEvent: (PocketCastsPlayer, PlayerEvent) -> Unit,
+    player: Player
+) : PocketCastsPlayer, Player by player {
 
     private var customData: JSONObject? = null
     private var podcast: Podcast? = null

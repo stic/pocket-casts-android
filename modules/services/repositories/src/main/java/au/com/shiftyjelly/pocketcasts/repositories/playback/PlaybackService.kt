@@ -13,9 +13,13 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -39,6 +43,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.podcast.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.UserEpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.subscription.SubscriptionManager
+import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
 import au.com.shiftyjelly.pocketcasts.servers.ServerManager
 import au.com.shiftyjelly.pocketcasts.utils.IS_RUNNING_UNDER_TEST
 import au.com.shiftyjelly.pocketcasts.utils.SchedulerProvider
@@ -61,6 +66,7 @@ import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingleOrNull
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 
@@ -99,6 +105,14 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
             get() = this@PlaybackService
     }
 
+    companion object {
+        private val BUFFER_TIME_MIN_MILLIS = TimeUnit.MINUTES.toMillis(15).toInt()
+        private val BUFFER_TIME_MAX_MILLIS = BUFFER_TIME_MIN_MILLIS
+
+        // Be careful increasing the size of the back buffer. It can easily lead to OOM errors.
+        private val BACK_BUFFER_TIME_MILLIS = TimeUnit.MINUTES.toMillis(2).toInt()
+    }
+
     @Inject lateinit var podcastManager: PodcastManager
     @Inject lateinit var episodeManager: EpisodeManager
     @Inject lateinit var folderManager: FolderManager
@@ -111,9 +125,10 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     @Inject lateinit var serverManager: ServerManager
     @Inject lateinit var notificationHelper: NotificationHelper
     @Inject lateinit var subscriptionManager: SubscriptionManager
+    @Inject lateinit var statsManager: StatsManager
 
     private val librarySessionCallback = CustomMediaLibrarySessionCallback()
-    private lateinit var player: ExoPlayer
+    private lateinit var player: Player
     private lateinit var mediaLibrarySession: MediaLibrarySession
 
 //    var mediaController: MediaControllerCompat? = null
@@ -158,10 +173,9 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     }
 
     private fun initializeSessionAndPlayer() {
-        player =
-            ExoPlayer.Builder(this)
-                .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ true)
-                .build()
+
+        // TODO Use the CastPlayer when casting
+        player = createExoPlayer()
 
         val mediaSessionBuilder = MediaLibrarySession.Builder(this, player, librarySessionCallback)
         if (!Util.isAutomotive(this)) { // We can't start activities on automotive
@@ -169,6 +183,56 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         }
 
         mediaLibrarySession = mediaSessionBuilder.build()
+    }
+
+    private fun createExoPlayer(): ExoPlayer {
+
+        val renderersFactory = createRenderersFactory()
+
+        val exoPlayer = ExoPlayer.Builder(this, renderersFactory)
+            // TODO Confirm if we need these
+            .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ true)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setTrackSelector(DefaultTrackSelector(baseContext))
+            .setLoadControl(createExoPlayerLoadControl())
+            .setSeekForwardIncrementMs(settings.getSkipForwardInMs())
+            .setSeekBackIncrementMs(settings.getSkipBackwardInMs())
+            .build()
+
+        renderersFactory.onAudioSessionId(exoPlayer.audioSessionId)
+
+        return exoPlayer
+    }
+
+    private fun createExoPlayerLoadControl(): DefaultLoadControl {
+        // FIXME Need isStreaming
+//            val minBufferMillis = if (isStreaming) BUFFER_TIME_MIN_MILLIS else DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
+//            val maxBufferMillis = if (isStreaming) BUFFER_TIME_MAX_MILLIS else DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+//            val backBufferMillis = if (isStreaming) BACK_BUFFER_TIME_MILLIS else DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS
+
+        return DefaultLoadControl.Builder()
+//                .setBufferDurationsMs(
+//                    minBufferMillis,
+//                    maxBufferMillis,
+//                    DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+//                    DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+//                )
+//                .setBackBuffer(
+//                    backBufferMillis,
+//                    DefaultLoadControl.DEFAULT_RETAIN_BACK_BUFFER_FROM_KEYFRAME
+//                )
+            .build()
+    }
+
+    private fun createRenderersFactory(): ShiftyRenderersFactory {
+        // FIXME get playback effects
+//        val playbackEffects: PlaybackEffects? = this.playbackEffects
+//        return if (playbackEffects == null) {
+//            ShiftyRenderersFactory(context = baseContext, statsManager = statsManager, boostVolume = false)
+//        } else {
+//            ShiftyRenderersFactory(context = baseContext, statsManager = statsManager, boostVolume = playbackEffects.isVolumeBoosted)
+//        }
+        return ShiftyRenderersFactory(context = baseContext, statsManager = statsManager, boostVolume = false)
     }
 
     override fun onDestroy() {
