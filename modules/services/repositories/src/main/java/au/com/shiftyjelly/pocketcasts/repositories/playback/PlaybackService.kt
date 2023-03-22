@@ -5,8 +5,10 @@ import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Binder
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
@@ -17,12 +19,19 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
 import au.com.shiftyjelly.pocketcasts.analytics.FirebaseAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.models.db.helper.UserEpisodePodcastSubstitute
 import au.com.shiftyjelly.pocketcasts.models.entity.Episode
@@ -155,6 +164,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        Timber.e("TEST123 returning mediaLibrarySession: $mediaLibrarySession")
         return mediaLibrarySession
     }
 
@@ -183,6 +193,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         }
 
         mediaLibrarySession = mediaSessionBuilder.build()
+        Timber.e("TEST123 mediaLibrarySession initialized: $mediaLibrarySession")
     }
 
     private fun createExoPlayer(): ExoPlayer {
@@ -193,13 +204,31 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
             // TODO Confirm if we need these
             .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setHandleAudioBecomingNoisy(true)
             .setTrackSelector(DefaultTrackSelector(baseContext))
             .setLoadControl(createExoPlayerLoadControl())
             .setSeekForwardIncrementMs(settings.getSkipForwardInMs())
             .setSeekBackIncrementMs(settings.getSkipBackwardInMs())
             .build()
-
         renderersFactory.onAudioSessionId(exoPlayer.audioSessionId)
+
+        // FIXME
+
+//        https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3
+        val uri = Uri.parse("https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3")
+        val mediaItem = MediaItem.fromUri(uri)
+
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Pocket Casts")
+            .setAllowCrossProtocolRedirects(true)
+        val dataSourceFactory = DefaultDataSource.Factory(baseContext, httpDataSourceFactory)
+        val extractorsFactory = DefaultExtractorsFactory().setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
+        val source = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+            .createMediaSource(mediaItem)
+        exoPlayer.setMediaSource(source)
+//        exoPlayer.addMediaItem(mediaItem)
+//        // FIXME move this
+        exoPlayer.prepare()
 
         return exoPlayer
     }
@@ -760,7 +789,73 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     }
 
     /*****************/
-    private inner class CustomMediaLibrarySessionCallback : MediaLibraryService.MediaLibrarySession.Callback {
+    private inner class CustomMediaLibrarySessionCallback : MediaLibrarySession.Callback {
+
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            Timber.d("TEST123, onConnect: ${controller.packageName}")
+            return super.onConnect(session, controller)
+        }
+
+        override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+            Timber.i("TEST123, onPostConnect: ${controller.packageName}")
+            super.onPostConnect(session, controller)
+        }
+
+        override fun onDisconnected(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ) {
+            Timber.i("TEST123, onDisconnected: ${controller.packageName}")
+            super.onDisconnected(session, controller)
+        }
+
+        override fun onPlayerCommandRequest(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            playerCommand: Int,
+        ): Int {
+            Timber.i("TEST123, onPlayerCommandRequest: $playerCommand")
+            return super.onPlayerCommandRequest(session, controller, playerCommand)
+        }
+
+        override fun onAddMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+        ): ListenableFuture<MutableList<MediaItem>> {
+            Timber.i("TEST123, onAddMediaItems: $mediaItems")
+            return super.onAddMediaItems(mediaSession, controller, mediaItems)
+        }
+
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            Timber.i("TEST123, onSetMediaItems: $mediaItems")
+            return super.onSetMediaItems(
+                mediaSession,
+                controller,
+                mediaItems,
+                startIndex,
+                startPositionMs
+            )
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            Timber.i("TEST123, onCustomCommand: $customCommand")
+            return super.onCustomCommand(session, controller, customCommand, args)
+        }
 
         override fun onSubscribe(
             session: MediaLibraryService.MediaLibrarySession,

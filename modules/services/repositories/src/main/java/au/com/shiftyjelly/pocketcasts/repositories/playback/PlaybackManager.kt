@@ -36,7 +36,6 @@ import au.com.shiftyjelly.pocketcasts.repositories.chromecast.CastManager
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadHelper.removeEpisodeFromQueue
 import au.com.shiftyjelly.pocketcasts.repositories.download.DownloadManager
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
-import au.com.shiftyjelly.pocketcasts.repositories.playback.LocalPlayer.Companion.VOLUME_DUCK
 import au.com.shiftyjelly.pocketcasts.repositories.playback.LocalPlayer.Companion.VOLUME_NORMAL
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PlaylistManager
@@ -183,7 +182,9 @@ open class PlaybackManager @Inject constructor(
         val sessionToken = SessionToken(application, ComponentName(application, PlaybackService::class.java))
         val controllerFuture = MediaController.Builder(application, sessionToken).buildAsync()
         launch {
+            Timber.e("TEST123, waiting for controller...")
             controller = controllerFuture.await()
+            Timber.e("TEST123, got controller: $controller")
         }
 //        controller?.sendCustomCommand()
     }
@@ -536,7 +537,7 @@ open class PlaybackManager @Inject constructor(
 
         cancelUpdateTimer()
 
-        launch {
+        launch(Dispatchers.Main) {
             pocketCastsPlayer?.pause()
         }
     }
@@ -1228,41 +1229,42 @@ open class PlaybackManager @Inject constructor(
     }
 
     override fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean) {
-        val player = pocketCastsPlayer
-        if (player == null || player.isRemote) {
-            return
-        }
-        // if we are playing but can't just reduce the volume then play when focus gained
-        val playing = isPlaying()
-        if (!mayDuck && playing) {
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
-            focusWasPlaying = Date()
-
-            pause(transientLoss = transientLoss, playbackSource = AnalyticsSource.AUTO_PAUSE)
-        } else {
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost not playing")
-            focusWasPlaying = null
-        }
-
-        // check if we need to reduce the volume
-        if (focusManager.canDuck()) {
-            player.setVolume(VOLUME_DUCK)
-        }
+//        val player = pocketCastsPlayer
+//        if (player == null || player.isRemote) {
+//            return
+//        }
+//        // if we are playing but can't just reduce the volume then play when focus gained
+//        val playing = isPlaying()
+//        if (!mayDuck && playing) {
+//            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
+//            focusWasPlaying = Date()
+//
+//            pause(transientLoss = transientLoss, playbackSource = AnalyticsSource.AUTO_PAUSE)
+//        } else {
+//            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost not playing")
+//            focusWasPlaying = null
+//        }
+//
+//        // check if we need to reduce the volume
+//        if (focusManager.canDuck()) {
+//            player.setVolume(VOLUME_DUCK)
+//        }
     }
 
     override fun onFocusRequestFailed() {
-        LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Could not get audio focus, stopping")
-        stopAsync(isAudioFocusFailed = true)
+//        LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Could not get audio focus, stopping")
+//        stopAsync(isAudioFocusFailed = true)
     }
 
     override fun onAudioBecomingNoisy() {
-        val player = pocketCastsPlayer
-        if (player == null || player.isRemote) {
-            return
-        }
-        LogBuffer.i(LogBuffer.TAG_PLAYBACK, "System fired 'Audio Becoming Noisy' event, pausing playback.")
-        pause(playbackSource = AnalyticsSource.AUTO_PAUSE)
-        focusWasPlaying = null
+        Timber.i("TEST123, old onAudioBecomingNoisy method triggered, but it is now a noop")
+//        val player = pocketCastsPlayer
+//        if (player == null || player.isRemote) {
+//            return
+//        }
+//        LogBuffer.i(LogBuffer.TAG_PLAYBACK, "System fired 'Audio Becoming Noisy' event, pausing playback.")
+//        pause(playbackSource = AnalyticsSource.AUTO_PAUSE)
+//        focusWasPlaying = null
     }
 
     /** PRIVATE METHODS  */

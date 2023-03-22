@@ -7,6 +7,7 @@ import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 /**
  * Manages audio focus with local media player.
@@ -74,6 +75,7 @@ abstract class LocalPlayer(
     }
 
     override suspend fun play(currentPositionMs: Int) {
+        Timber.e("TEST123 LocalPlayer::play")
         withContext(Dispatchers.Main) {
             this@LocalPlayer.positionMs = currentPositionMs
 

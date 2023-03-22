@@ -112,6 +112,7 @@ class SimplePlayer(
         }
 
         try {
+            Timber.e("TEST123, releasing the player in handleStop")
             player?.release()
         } catch (e: Exception) {
         }
@@ -127,7 +128,9 @@ class SimplePlayer(
     }
 
     override fun handlePlay() {
+        Timber.e("TEST123, handlePlay: $player")
         player?.playWhenReady = true
+        player?.play()
     }
 
     override fun handleSeekToTimeMs(positionMs: Int) {
@@ -173,7 +176,7 @@ class SimplePlayer(
     override fun setPodcast(podcast: Podcast?) {}
 
     override fun prepare() {
-        super.prepare()
+//        super.prepare()
 
 //        val trackSelector = DefaultTrackSelector(context)
 
@@ -200,10 +203,12 @@ class SimplePlayer(
 //            .build()
 //
 //        renderer.onAudioSessionId(player.audioSessionId)
+//        player.addMediaItem(source)
 
 //        player?.getRenderer()
 
-        handleStop()
+        // Does this break the connection because it releases the player?
+//        handleStop()
 //        this.player = player
 
         setPlayerEffects()
@@ -271,11 +276,14 @@ class SimplePlayer(
                 .createMediaSource(mediaItem)
         }
 
-        // FIXME stop casting
-        (player as? ExoPlayer)?.apply {
-            setMediaSource(source)
-            prepare()
-        }
+        Timber.e("TEST123, preparing to set media source: $source, $player")
+        player.addMediaItem(mediaItem)
+        // FIXME use source
+//        (player as? ExoPlayer)?.apply {
+//            Timber.e("TEST123, setting media source")
+//            setMediaSource(source)
+//            prepare()
+//        }
 
         prepared = true
     }

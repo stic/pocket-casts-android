@@ -114,40 +114,40 @@ open class FocusManager(private val settings: Settings, context: Context?) : Aud
 
     override fun onAudioFocusChange(focusChange: Int) {
         // map to our own focus status
-        if (focusChange == AudioManager.AUDIOFOCUS_GAIN ||
-            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT ||
-            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK ||
-            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
-        ) {
-            // focus gained
-            // if not transient only let it resume within 2 minutes
-            val shouldResume = (isLostTransient || System.currentTimeMillis() < timeFocusLost + 120000) && !deviceRemovedWhileFocusLost
-            audioFocus = AUDIO_FOCUSED
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained, should resume $shouldResume. Device removed: $deviceRemovedWhileFocusLost")
-            focusChangeListener?.onFocusGain(shouldResume)
-        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
-            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
-            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
-        ) {
-            // focus lost
-            if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
-                audioFocus = AUDIO_NO_FOCUS_NO_DUCK
-            } else if (isFocused) {
-                if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                    audioFocus = AUDIO_NO_FOCUS_NO_DUCK_TRANSIENT
-                } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
-                    audioFocus = AUDIO_NO_FOCUS_CAN_DUCK_TRANSIENT
-                }
-            } // if already paused with a focus lost don't then allow the sound to play ducked
-            timeFocusLost = System.currentTimeMillis()
-            deviceRemovedWhileFocusLost = false
-            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost. AUDIOFOCUS_LOSS: %s AUDIOFOCUS_LOSS_TRANSIENT: %s AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: %s", focusChange == AudioManager.AUDIOFOCUS_LOSS, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
-            focusChangeListener?.onFocusLoss(canDuck(), isLostTransient)
-        } else if (focusChange == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
-            focusChangeListener?.onFocusRequestFailed()
-        } else {
-            Timber.w("onAudioFocusChange: Ignoring unsupported focusChange: %d", focusChange)
-        }
+//        if (focusChange == AudioManager.AUDIOFOCUS_GAIN ||
+//            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT ||
+//            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK ||
+//            focusChange == AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+//        ) {
+//            // focus gained
+//            // if not transient only let it resume within 2 minutes
+//            val shouldResume = (isLostTransient || System.currentTimeMillis() < timeFocusLost + 120000) && !deviceRemovedWhileFocusLost
+//            audioFocus = AUDIO_FOCUSED
+//            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus gained, should resume $shouldResume. Device removed: $deviceRemovedWhileFocusLost")
+//            focusChangeListener?.onFocusGain(shouldResume)
+//        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS ||
+//            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
+//            focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK
+//        ) {
+//            // focus lost
+//            if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+//                audioFocus = AUDIO_NO_FOCUS_NO_DUCK
+//            } else if (isFocused) {
+//                if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+//                    audioFocus = AUDIO_NO_FOCUS_NO_DUCK_TRANSIENT
+//                } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+//                    audioFocus = AUDIO_NO_FOCUS_CAN_DUCK_TRANSIENT
+//                }
+//            } // if already paused with a focus lost don't then allow the sound to play ducked
+//            timeFocusLost = System.currentTimeMillis()
+//            deviceRemovedWhileFocusLost = false
+//            LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost. AUDIOFOCUS_LOSS: %s AUDIOFOCUS_LOSS_TRANSIENT: %s AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: %s", focusChange == AudioManager.AUDIOFOCUS_LOSS, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK)
+//            focusChangeListener?.onFocusLoss(canDuck(), isLostTransient)
+//        } else if (focusChange == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
+//            focusChangeListener?.onFocusRequestFailed()
+//        } else {
+        Timber.w("onAudioFocusChange: Ignoring unsupported focusChange: %d", focusChange)
+//        }
     }
 
     fun canDuck(): Boolean {
