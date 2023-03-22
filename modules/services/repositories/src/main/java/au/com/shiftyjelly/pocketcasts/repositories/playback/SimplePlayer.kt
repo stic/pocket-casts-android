@@ -130,7 +130,6 @@ class SimplePlayer(
     override fun handlePlay() {
         Timber.e("TEST123, handlePlay: $player")
         player?.playWhenReady = true
-        player?.play()
     }
 
     override fun handleSeekToTimeMs(positionMs: Int) {
