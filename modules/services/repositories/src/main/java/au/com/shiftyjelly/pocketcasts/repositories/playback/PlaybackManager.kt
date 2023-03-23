@@ -5,14 +5,17 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.lifecycle.LiveDataReactiveStreams
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import androidx.work.await
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsEvent
@@ -742,6 +745,11 @@ open class PlaybackManager @Inject constructor(
         launch {
             val player = pocketCastsPlayer
             player?.setPlaybackEffects(effects)
+
+            controller?.sendCustomCommand(
+                SessionCommand("VolumeBoost", Bundle.EMPTY),
+                bundleOf(Pair("isVolumeBoosted", effects.isVolumeBoosted))
+            )
 
             withContext(Dispatchers.Main) {
                 playbackStateRelay.blockingFirst().let { playbackState ->
