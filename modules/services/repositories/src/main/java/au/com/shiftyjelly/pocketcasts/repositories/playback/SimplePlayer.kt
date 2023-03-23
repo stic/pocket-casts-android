@@ -1,7 +1,6 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.SurfaceView
@@ -16,10 +15,9 @@ import androidx.media3.common.VideoSize
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp3.Mp3Extractor
+import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
@@ -28,7 +26,6 @@ import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.File
 
 class SimplePlayer(
 
@@ -56,6 +53,7 @@ class SimplePlayer(
     var videoHeight: Int = 0
 
     override var isPip: Boolean = false
+    override var playable: Playable? = null
 
     private var videoChangedListener: VideoChangedListener? = null
 
@@ -69,19 +67,19 @@ class SimplePlayer(
 
     override suspend fun bufferedUpToMs(): Int {
         return withContext(Dispatchers.Main) {
-            player?.bufferedPosition?.toInt() ?: 0
+            player.bufferedPosition.toInt()
         }
     }
 
     override suspend fun bufferedPercentage(): Int {
         return withContext(Dispatchers.Main) {
-            player?.bufferedPercentage ?: 0
+            player.bufferedPercentage
         }
     }
 
     override suspend fun durationMs(): Int? {
         return withContext(Dispatchers.Main) {
-            val duration = player?.duration ?: C.TIME_UNSET
+            val duration = player.duration
             if (duration == C.TIME_UNSET) null else duration.toInt()
         }
     }
@@ -89,13 +87,13 @@ class SimplePlayer(
     override fun isPlaying(): Boolean {
 //        return withContext(Dispatchers.Main) {
 //        return launch(Dispatchers.Main) {
-        return player?.playWhenReady ?: false
+        return player.playWhenReady
 //        }
 //        }
     }
 
     override fun handleCurrentPositionMs(): Int {
-        return player?.currentPosition?.toInt() ?: -1
+        return player.currentPosition.toInt()
     }
 
     override fun handlePrepare() {
@@ -107,14 +105,15 @@ class SimplePlayer(
 
     override fun handleStop() {
         try {
-            player?.stop()
+            player.stop()
         } catch (e: Exception) {
+            Timber.e(e)
         }
 
         try {
-            Timber.e("TEST123, releasing the player in handleStop")
-            player?.release()
+//            player.release()
         } catch (e: Exception) {
+            Timber.e(e)
         }
 
 //        player = null
@@ -124,25 +123,25 @@ class SimplePlayer(
     }
 
     override fun handlePause() {
-        player?.playWhenReady = false
+        player.playWhenReady = false
     }
 
     override fun handlePlay() {
-        Timber.e("TEST123, handlePlay: $player")
-        player?.playWhenReady = true
+        Timber.i("TEST123, SimplePlayer::handlePlay")
+        player.playWhenReady = true
     }
 
     override fun handleSeekToTimeMs(positionMs: Int) {
-        if (player?.isCurrentMediaItemSeekable == false && player?.isPlaying == true) {
+        if (!player.isCurrentMediaItemSeekable && player.isPlaying) {
             Toast.makeText(context, "Unable to seek. File headers appear to be invalid.", Toast.LENGTH_SHORT).show()
         } else {
-            player?.seekTo(positionMs.toLong())
+            player.seekTo(positionMs.toLong())
             super.onSeekComplete(positionMs)
         }
     }
 
     override fun handleIsBuffering(): Boolean {
-        return (player?.playbackState ?: Player.STATE_ENDED) == Player.STATE_BUFFERING
+        return (player.playbackState) == Player.STATE_BUFFERING
     }
 
     override fun handleIsPrepared(): Boolean {
@@ -169,7 +168,7 @@ class SimplePlayer(
     }
 
     override fun setVolume(volume: Float) {
-        player?.volume = volume
+        player.volume = volume
     }
 
     override fun setPodcast(podcast: Podcast?) {}
@@ -211,9 +210,9 @@ class SimplePlayer(
 //        this.player = player
 
         setPlayerEffects()
-        player?.addListener(object : Player.Listener {
+        player.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: Tracks) {
-                val episodeMetadata = EpisodeFileMetadata(filenamePrefix = episodeUuid)
+                val episodeMetadata = EpisodeFileMetadata(filenamePrefix = playable?.uuid)
                 episodeMetadata.read(tracks, settings, context)
                 onMetadataAvailable(episodeMetadata)
             }
@@ -223,8 +222,10 @@ class SimplePlayer(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                Timber.i("TEST123, onPlaybackStateChanged: $playbackState")
                 if (playbackState == Player.STATE_ENDED) {
-                    onCompletion()
+                    // FIXME - this is getting called immediately when I try to play something
+//                    onCompletion()
                 } else if (playbackState == Player.STATE_READY) {
                     onBufferingStateChanged()
                     onDurationAvailable()
@@ -246,45 +247,55 @@ class SimplePlayer(
             .setAllowCrossProtocolRedirects(true)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
         val extractorsFactory = DefaultExtractorsFactory().setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
-        val location = episodeLocation
-        if (location == null) {
-            onError(PlayerEvent.PlayerError("Episode has no source"))
-            return
-        }
 
-        val uri: Uri = when (location) {
-            is EpisodeLocation.Stream -> {
-                Uri.parse(location.uri)
-            }
-            is EpisodeLocation.Downloaded -> {
-                val filePath = location.filePath
-                if (filePath != null) {
-                    Uri.fromFile(File(filePath))
-                } else {
-                    onError(PlayerEvent.PlayerError("File has no file path"))
-                    return
-                }
-            }
-        } ?: return
-
-        val mediaItem = MediaItem.fromUri(uri)
-        val source = if (isHLS) {
-            HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-        } else {
-            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-                .createMediaSource(mediaItem)
-        }
-
-        Timber.e("TEST123, preparing to set media source: $source, $player")
-        player.addMediaItem(mediaItem)
-        // FIXME use source
-//        (player as? ExoPlayer)?.apply {
-//            Timber.e("TEST123, setting media source")
-//            setMediaSource(source)
-//            prepare()
+//        val location = episodeLocation
+//        if (location == null) {
+//            onError(PlayerEvent.PlayerError("Episode has no source"))
+//            return
 //        }
 
-        prepared = true
+//        val uri: Uri = when (location) {
+//            is EpisodeLocation.Stream -> {
+//                Uri.parse(location.uri)
+//            }
+//            is EpisodeLocation.Downloaded -> {
+//                val filePath = location.filePath
+//                if (filePath != null) {
+//                    Uri.fromFile(File(filePath))
+//                } else {
+//                    onError(PlayerEvent.PlayerError("File has no file path"))
+//                    return
+//                }
+//            }
+//        } ?: return
+
+//        val mediaItem = MediaItem.fromUri(uri)
+//        val source = if (isHLS) {
+//            HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//        } else {
+//            ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+//                .createMediaSource(mediaItem)
+//        }
+//        val uri = Uri.parse("https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3")
+//        val mediaItem = MediaItem.fromUri(uri)
+//
+//        Timber.e("TEST123, SimplePlayer::preparing setting media source: $uri, $player")
+// //        player.addMediaItem(mediaItem)
+//        player.setMediaItem(mediaItem)
+
+//        val uri = Uri.parse("https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3")
+//        val mediaItem = MediaItem.fromUri(uri)
+//        player.addMediaItem(mediaItem)
+
+        playable?.uuid?.let {
+            player.setMediaItem(
+                MediaItem.Builder()
+                    .setMediaId(it)
+                    .build()
+            )
+            player.prepare()
+            prepared = true
+        }
     }
 
     private fun addVideoListener(player: ExoPlayer) {
@@ -335,8 +346,7 @@ class SimplePlayer(
 
     private fun setPlayerEffects() {
         val player = player
-        val playbackEffects = playbackEffects
-        if (player == null || playbackEffects == null) return // nothing to set
+        val playbackEffects = playbackEffects ?: return
 
         // FIXME Is this shifty?
 //        player.getRenderer(0)

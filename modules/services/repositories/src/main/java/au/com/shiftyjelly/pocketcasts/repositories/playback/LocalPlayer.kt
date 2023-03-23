@@ -2,7 +2,6 @@ package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.os.SystemClock
 import androidx.media3.common.Player
-import au.com.shiftyjelly.pocketcasts.models.entity.Playable
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import kotlinx.coroutines.Dispatchers
@@ -30,22 +29,23 @@ abstract class LocalPlayer(
     private var seekingToPositionMs: Int = 0
     private var seekRetryAllowed: Boolean = false
 
-    protected var isHLS: Boolean = false
+//    protected var isHLS: Boolean = false
 
-    override var episodeUuid: String? = null
+//    override var episodeUuid: String? = null
 
-    override var episodeLocation: EpisodeLocation? = null
-    override val url: String?
-        get() = (episodeLocation as? EpisodeLocation.Stream)?.uri
+//    override var episodeLocation: EpisodeLocation? = null
+//    override val url: String?
+//        get() = (episodeLocation as? EpisodeLocation.Stream)?.uri
 
-    override val filePath: String?
-        get() = (episodeLocation as? EpisodeLocation.Downloaded)?.filePath
+//    override val filePath: String?
+//        get() = (episodeLocation as? EpisodeLocation.Downloaded)?.filePath
 
     override val isRemote: Boolean
         get() = false
 
     override val isStreaming: Boolean
-        get() = episodeLocation is EpisodeLocation.Stream
+//        get() = episodeLocation is EpisodeLocation.Stream
+        get() = playable?.isDownloaded ?: true
 
     override val name: String
         get() = "System"
@@ -70,12 +70,13 @@ abstract class LocalPlayer(
     // downloaded episodes don't buffer
     override suspend fun isBuffering(): Boolean {
         return withContext(Dispatchers.Main) {
-            if (filePath != null) false else handleIsBuffering()
+//            if (filePath != null) false else handleIsBuffering()
+            if (isStreaming) handleIsBuffering() else false
         }
     }
 
     override suspend fun play(currentPositionMs: Int) {
-        Timber.e("TEST123 LocalPlayer::play")
+        Timber.i("TEST123 LocalPlayer::play")
         withContext(Dispatchers.Main) {
             this@LocalPlayer.positionMs = currentPositionMs
 
@@ -157,7 +158,7 @@ abstract class LocalPlayer(
     }
 
     protected fun onCompletion() {
-        onPlayerEvent(this, PlayerEvent.Completion(episodeUuid))
+        onPlayerEvent(this, PlayerEvent.Completion(playable?.uuid))
     }
 
     protected fun onBufferingStateChanged() {
@@ -186,15 +187,16 @@ abstract class LocalPlayer(
         }
     }
 
-    override fun setEpisode(episode: Playable) {
-        this.episodeUuid = episode.uuid
-        this.isHLS = episode.isHLS
-        episodeLocation = if (episode.isDownloaded) {
-            EpisodeLocation.Downloaded(episode.downloadedFilePath)
-        } else {
-            EpisodeLocation.Stream(episode.downloadUrl)
-        }
-    }
+//    override fun setPlayable(playable: Playable) {
+// //        this.episodeUuid = episode.uuid
+// //        this.isHLS = episode.isHLS
+// //        episodeLocation = if (episode.isDownloaded) {
+// //            EpisodeLocation.Downloaded(episode.downloadedFilePath)
+// //        } else {
+// //            EpisodeLocation.Stream(episode.downloadUrl)
+// //        }
+//        this.playable = playable
+//    }
 
     override suspend fun setPlaybackEffects(playbackEffects: PlaybackEffects) {}
 }

@@ -180,13 +180,13 @@ open class PlaybackManager @Inject constructor(
 
     init {
         val sessionToken = SessionToken(application, ComponentName(application, PlaybackService::class.java))
+
+        // FIXME do we need to hold onto the controller future so we can release it?
+        // https://developer.android.com/guide/topics/media/media3/getting-started/playing-in-background#handling-ui
         val controllerFuture = MediaController.Builder(application, sessionToken).buildAsync()
         launch {
-            Timber.e("TEST123, waiting for controller...")
             controller = controllerFuture.await()
-            Timber.e("TEST123, got controller: $controller")
         }
-//        controller?.sendCustomCommand()
     }
 
     @SuppressLint("CheckResult")
@@ -318,7 +318,7 @@ open class PlaybackManager @Inject constructor(
         if (player != null) {
             val currentTimeMs = player.getCurrentPositionMs()
             // check the player has been loaded with the latest episode so there isn't side effects like using an old episode's time with a new episode.
-            if (currentTimeMs >= 0 && player.episodeUuid == episode.uuid) {
+            if (currentTimeMs >= 0 && player.playable?.uuid == episode.uuid) {
                 return currentTimeMs
             }
         }
@@ -394,6 +394,7 @@ open class PlaybackManager @Inject constructor(
         }
 
         val switchEpisode: Boolean = !upNextQueue.isCurrentEpisode(episode)
+        Timber.i("TEST123 PlaybackManager::playNowSync(), switchEpisode: $switchEpisode, isPlayerSwitchRequired: ${isPlayerSwitchRequired()}")
         if (switchEpisode || isPlayerSwitchRequired()) {
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Player switch required. Different episode: $switchEpisode")
             pause(transientLoss = true)
@@ -552,6 +553,7 @@ open class PlaybackManager @Inject constructor(
     }
 
     suspend fun stop() {
+        Thread.dumpStack()
         LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Stopping playback")
 
         cancelUpdateTimer()
@@ -658,7 +660,7 @@ open class PlaybackManager @Inject constructor(
             val jumpAmountMs = jumpAmountSeconds * 1000
 
             val currentTimeMs = getCurrentTimeMs(episode = episode)
-            if (currentTimeMs < 0 || pocketCastsPlayer?.episodeUuid != episode.uuid) return@launch // Make sure the player hasn't changed episodes before using the current time to seek
+            if (currentTimeMs < 0 || pocketCastsPlayer?.playable?.uuid != episode.uuid) return@launch // Make sure the player hasn't changed episodes before using the current time to seek
 
             val newPositionMs = currentTimeMs + jumpAmountMs
             val durationMs = pocketCastsPlayer?.durationMs() ?: Int.MAX_VALUE // If we don't have a duration, just let them skip
@@ -766,7 +768,7 @@ open class PlaybackManager @Inject constructor(
             removeMutex.withLock {
                 val currentEpisode = getCurrentEpisode()
 
-                val isCurrentEpisode = currentEpisode != null && currentEpisode.uuid == episodeToRemove.uuid && (pocketCastsPlayer == null || pocketCastsPlayer?.episodeUuid == episodeToRemove.uuid)
+                val isCurrentEpisode = currentEpisode != null && currentEpisode.uuid == episodeToRemove.uuid && (pocketCastsPlayer == null || pocketCastsPlayer?.playable?.uuid == episodeToRemove.uuid)
                 val isPlaying = isPlaying()
 
                 if (isCurrentEpisode) {
@@ -803,7 +805,8 @@ open class PlaybackManager @Inject constructor(
                 loadCurrentEpisode(play = false)
             }
 
-            pocketCastsPlayer?.setEpisode(episode)
+            pocketCastsPlayer?.playable = episode
+//            pocketCastsPlayer?.setPlayable(episode)
             pocketCastsPlayer?.setPodcast(podcast)
         }
     }
@@ -985,6 +988,8 @@ open class PlaybackManager @Inject constructor(
     }
 
     private suspend fun onCompletion(episodeUUID: String?) {
+        Timber.i("TEST123, PlaybackManager::onCompletion")
+        Thread.dumpStack()
         if (resettingPlayer) {
             return
         }
@@ -1300,8 +1305,9 @@ open class PlaybackManager @Inject constructor(
         } else episode.isDownloaded &&
             playbackOnDevice &&
             episode.downloadedFilePath != null &&
-            pocketCastsPlayer != null &&
-            episode.downloadedFilePath != pocketCastsPlayer?.filePath
+            pocketCastsPlayer != null
+        // FIXME
+//                && episode.downloadedFilePath != pocketCastsPlayer?.filePath
 
         // if the player has a different media file path then it is changing
     }
@@ -1344,7 +1350,7 @@ open class PlaybackManager @Inject constructor(
         cancelBufferUpdateTimer()
 
         val currentPlayer = this.pocketCastsPlayer
-        val sameEpisode = currentPlayer != null && episode.uuid == currentPlayer.episodeUuid
+        val sameEpisode = currentPlayer != null && episode.uuid == currentPlayer.playable?.uuid
 
         sleepAfterEpisode = sleepAfterEpisode && playbackStateRelay.blockingFirst().episodeUuid == episode.uuid
 
@@ -1458,7 +1464,8 @@ open class PlaybackManager @Inject constructor(
         }
 
         pocketCastsPlayer?.setPodcast(podcast)
-        pocketCastsPlayer?.setEpisode(episode)
+        pocketCastsPlayer?.playable = episode
+//        pocketCastsPlayer?.setPlayable(episode)
 
         val playbackEffects = if (podcast != null && podcast.overrideGlobalEffects) podcast.playbackEffects else settings.getGlobalPlaybackEffects()
 
@@ -1621,8 +1628,8 @@ open class PlaybackManager @Inject constructor(
             playbackStateRelay.blockingFirst().let { playbackState ->
                 playbackStateRelay.accept(playbackState.copy(state = PlaybackState.State.PLAYING, lastChangeFrom = "play"))
 
-                if (pocketCastsPlayer?.episodeUuid != playbackState.episodeUuid) {
-                    LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Player playing episode that is not the same as playback state. Player: ${pocketCastsPlayer?.episodeUuid} State: ${playbackState.episodeUuid}")
+                if (pocketCastsPlayer?.playable?.uuid != playbackState.episodeUuid) {
+                    LogBuffer.e(LogBuffer.TAG_PLAYBACK, "Player playing episode that is not the same as playback state. Player: ${pocketCastsPlayer?.playable?.uuid} State: ${playbackState.episodeUuid}")
                 }
 
                 // Handle skip first
@@ -1869,7 +1876,7 @@ open class PlaybackManager @Inject constructor(
     suspend fun preparePlayer() {
         val episode = upNextQueue.currentEpisode ?: return
         val currentPlayer = this.pocketCastsPlayer
-        if (currentPlayer == null || episode.uuid != currentPlayer.episodeUuid) {
+        if (currentPlayer == null || episode.uuid != currentPlayer.playable?.uuid) {
             loadCurrentEpisode(false)
         }
     }
@@ -1882,7 +1889,7 @@ open class PlaybackManager @Inject constructor(
                 withContext(Dispatchers.Main) {
                     updatePausedPlaybackState()
                 }
-            } else if (episode.uuid != currentPlayer.episodeUuid) {
+            } else if (episode.uuid != currentPlayer.playable?.uuid) {
                 loadCurrentEpisode(false)
             }
         }

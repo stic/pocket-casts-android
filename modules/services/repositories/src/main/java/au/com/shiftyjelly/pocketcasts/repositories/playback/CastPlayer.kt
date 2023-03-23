@@ -30,7 +30,7 @@ import timber.log.Timber
 class CastPlayer(
     val context: Context,
     override val onPlayerEvent: (PocketCastsPlayer, PlayerEvent) -> Unit,
-    player: Player
+    player: Player,
 ) : PocketCastsPlayer, Player by player {
 
     private var customData: JSONObject? = null
@@ -60,24 +60,30 @@ class CastPlayer(
             TextUtils.equals(localEpisodeUuid, remoteEpisodeUuid) &&
             state != PlaybackStateCompat.STATE_NONE && state != PlaybackStateCompat.STATE_STOPPED
 
-    override var episodeLocation: EpisodeLocation? = null
-
-    override val url: String?
-        get() = (episodeLocation as? EpisodeLocation.Stream)?.uri
+//    override var episodeLocation: EpisodeLocation? = null
+//
+//    override val url: String?
+//        get() = (episodeLocation as? EpisodeLocation.Stream)?.uri
 
     override val isRemote: Boolean
         get() = true
 
     override val isStreaming: Boolean
         get() = true
+    override var playable: Playable? = null
+        set(value) {
+            field = value
+//            localEpisodeUuid = value?.uuid
+            buildCustomData()
+        }
 
     override val name: String
         get() = "Cast"
 
-    override val episodeUuid: String?
-        get() = episode?.uuid
-
-    override val filePath: String? = null
+//    override val episodeUuid: String?
+//        get() = episode?.uuid
+//
+//    override val filePath: String? = null
 
     private val isConnected: Boolean
         get() {
@@ -227,16 +233,16 @@ class CastPlayer(
         this.podcast = podcast
     }
 
-    override fun setEpisode(episode: Playable) {
-        this.episode = episode
-        this.episodeLocation =
-            EpisodeLocation.Stream(
-                episode.downloadUrl
-            )
-
-        localEpisodeUuid = episode.uuid
-        buildCustomData()
-    }
+//    override fun setPlayable(episode: Playable) {
+//        this.episode = episode
+// //        this.episodeLocation =
+// //            EpisodeLocation.Stream(
+// //                episode.downloadUrl
+// //            )
+// //
+//        localEpisodeUuid = episode.uuid
+//        buildCustomData()
+//    }
 
     private fun addRemoteMediaListener() {
         if (remoteListenerAdded) {
@@ -343,7 +349,7 @@ class CastPlayer(
         // Convert the remote playback states to media playback states.
         when (status) {
             MediaStatus.PLAYER_STATE_IDLE -> if (idleReason == MediaStatus.IDLE_REASON_FINISHED) {
-                onPlayerEvent(this, PlayerEvent.Completion(episodeUuid))
+                onPlayerEvent(this, PlayerEvent.Completion(playable?.uuid))
             }
             MediaStatus.PLAYER_STATE_BUFFERING, MediaStatus.PLAYER_STATE_LOADING -> {
                 state = PlaybackStateCompat.STATE_BUFFERING

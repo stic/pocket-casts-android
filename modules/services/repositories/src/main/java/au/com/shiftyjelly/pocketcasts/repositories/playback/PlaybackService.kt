@@ -19,14 +19,9 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.extractor.DefaultExtractorsFactory
-import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -164,7 +159,6 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
-        Timber.e("TEST123 returning mediaLibrarySession: $mediaLibrarySession")
         return mediaLibrarySession
     }
 
@@ -193,7 +187,15 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         }
 
         mediaLibrarySession = mediaSessionBuilder.build()
-        Timber.e("TEST123 mediaLibrarySession initialized: $mediaLibrarySession")
+
+//        with (mediaLibrarySession.player) {
+//            val uri = Uri.parse("https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3")
+//            val mediaItem = MediaItem.fromUri(uri)
+// //            addMediaItem(mediaItem)
+// //            setMediaItem(mediaItem)
+//        }
+
+        Timber.i("TEST123 mediaLibrarySession initialized: $mediaLibrarySession")
     }
 
     private fun createExoPlayer(): ExoPlayer {
@@ -213,22 +215,6 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         renderersFactory.onAudioSessionId(exoPlayer.audioSessionId)
 
         // FIXME
-
-//        https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3
-        val uri = Uri.parse("https://distributed.blog/wp-content/uploads/2021/11/Dylan-Field-Connie-.mp3")
-        val mediaItem = MediaItem.fromUri(uri)
-
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("Pocket Casts")
-            .setAllowCrossProtocolRedirects(true)
-        val dataSourceFactory = DefaultDataSource.Factory(baseContext, httpDataSourceFactory)
-        val extractorsFactory = DefaultExtractorsFactory().setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
-        val source = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
-            .createMediaSource(mediaItem)
-        exoPlayer.setMediaSource(source)
-//        exoPlayer.addMediaItem(mediaItem)
-//        // FIXME move this
-        exoPlayer.prepare()
 
         return exoPlayer
     }
@@ -825,10 +811,46 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: MutableList<MediaItem>,
-        ): ListenableFuture<MutableList<MediaItem>> {
-            Timber.i("TEST123, onAddMediaItems: $mediaItems")
-            return super.onAddMediaItems(mediaSession, controller, mediaItems)
-        }
+        ): ListenableFuture<MutableList<MediaItem>> =
+            future {
+                Timber.i("TEST123, onAddMediaItems: $mediaItems")
+                mediaItems
+                    .mapNotNull {
+                        val playableUuid = it.mediaId
+                        val playable = episodeManager.findPlayableByUuid(playableUuid)
+
+                        if (playable == null) {
+                            LogBuffer.e(
+                                LogBuffer.TAG_PLAYBACK,
+                                "Could not find playable for $playableUuid in PlaybackService onAddMediaItems callback"
+                            )
+                            null
+                        } else {
+
+                            // FIXME Where to use the logic for creating a source instead of a media item
+//                            val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+//                                .setUserAgent("Pocket Casts")
+//                                .setAllowCrossProtocolRedirects(true)
+//                            val dataSourceFactory = DefaultDataSource.Factory(baseContext, httpDataSourceFactory)
+//                            val extractorsFactory = DefaultExtractorsFactory().setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING)
+//                            val source = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
+//                                .createMediaSource(mediaItem)
+//                            exoPlayer.setMediaSource(source)
+
+                            val location = if (playable.isDownloaded) {
+                                playable.downloadedFilePath
+                            } else {
+                                playable.downloadUrl
+                            }
+
+                            Timber.i("TEST123, adding location to media item: $location")
+
+                            it.buildUpon().setUri(
+                                Uri.parse(location)
+                            ).build()
+                        }
+                    }.toMutableList()
+            }
 
         override fun onSetMediaItems(
             mediaSession: MediaSession,
