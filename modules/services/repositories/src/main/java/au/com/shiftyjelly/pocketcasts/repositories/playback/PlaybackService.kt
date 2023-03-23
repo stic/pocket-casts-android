@@ -1,18 +1,13 @@
 package au.com.shiftyjelly.pocketcasts.repositories.playback
 
 import android.app.ActivityManager
-import android.app.ForegroundServiceStartNotAllowedException
-import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Binder
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaControllerCompat
-import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -27,7 +22,6 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import au.com.shiftyjelly.pocketcasts.analytics.FirebaseAnalyticsTracker
 import au.com.shiftyjelly.pocketcasts.models.db.helper.UserEpisodePodcastSubstitute
 import au.com.shiftyjelly.pocketcasts.models.entity.Episode
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
@@ -35,7 +29,6 @@ import au.com.shiftyjelly.pocketcasts.models.to.FolderItem
 import au.com.shiftyjelly.pocketcasts.models.to.SubscriptionStatus
 import au.com.shiftyjelly.pocketcasts.models.type.PodcastsSortType
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
-import au.com.shiftyjelly.pocketcasts.repositories.extensions.id
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationDrawer
 import au.com.shiftyjelly.pocketcasts.repositories.notification.NotificationHelper
 import au.com.shiftyjelly.pocketcasts.repositories.playback.auto.AutoConverter
@@ -50,20 +43,14 @@ import au.com.shiftyjelly.pocketcasts.repositories.subscription.SubscriptionMana
 import au.com.shiftyjelly.pocketcasts.repositories.user.StatsManager
 import au.com.shiftyjelly.pocketcasts.servers.ServerManager
 import au.com.shiftyjelly.pocketcasts.utils.IS_RUNNING_UNDER_TEST
-import au.com.shiftyjelly.pocketcasts.utils.SchedulerProvider
-import au.com.shiftyjelly.pocketcasts.utils.SentryHelper
 import au.com.shiftyjelly.pocketcasts.utils.Util
 import au.com.shiftyjelly.pocketcasts.utils.extensions.getLaunchActivityPendingIntent
 import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.jakewharton.rxrelay2.BehaviorRelay
 import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.rxkotlin.Observables
-import io.reactivex.rxkotlin.addTo
-import io.reactivex.rxkotlin.subscribeBy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.future
@@ -145,8 +132,8 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
 //            }
 //        }
 
-    private var mediaControllerCallback: MediaControllerCallback? = null
-    lateinit var notificationManager: PlayerNotificationManager
+//    private var mediaControllerCallback: MediaControllerCallback? = null
+//    lateinit var notificationManager: PlayerNotificationManager
 
     private val disposables = CompositeDisposable()
 
@@ -173,7 +160,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
 //        sessionToken = mediaSession.sessionToken
 
 //        mediaController = MediaControllerCompat(this, mediaSession)
-        notificationManager = PlayerNotificationManagerImpl(this)
+//        notificationManager = PlayerNotificationManagerImpl(this)
     }
 
     private fun initializeSessionAndPlayer() {
@@ -270,7 +257,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
         return false
     }
 
-    private inner class MediaControllerCallback(currentMetadataCompat: MediaMetadataCompat?) : MediaControllerCompat.Callback() {
+    /*private inner class MediaControllerCallback(currentMetadataCompat: MediaMetadataCompat?) : MediaControllerCompat.Callback() {
         private val playbackStatusRelay = BehaviorRelay.create<PlaybackStateCompat>()
         private val mediaMetadataRelay = BehaviorRelay.create<MediaMetadataCompat>().apply {
             if (currentMetadataCompat != null) {
@@ -316,14 +303,14 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
             playbackStatusRelay.accept(state)
         }
 
-        /***
-         // This is the most fragile and important code in the app, edit with care
-         // Possible bugs to watch out for are:
-         // - No notification shown during playback which means no foregrounds service, app could be killed or stutter
-         // - Notification coming back after pausing
-         // - Incorrect state shown in notification compared with player
-         // - Notification not being able to be dismissed after pausing playback
-         ***/
+        *//***
+     // This is the most fragile and important code in the app, edit with care
+     // Possible bugs to watch out for are:
+     // - No notification shown during playback which means no foregrounds service, app could be killed or stutter
+     // - Notification coming back after pausing
+     // - Incorrect state shown in notification compared with player
+     // - Notification not being able to be dismissed after pausing playback
+     ***//*
         private fun onPlaybackStateChangedWithNotification(playbackState: PlaybackStateCompat, notification: Notification?) {
             val isForegroundService = isForegroundService()
             val state = playbackState.state
@@ -450,9 +437,9 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
 
 //            val sessionToken = null // sessionToken
 //            if (metadata == null || metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID).isEmpty()) return null
-            return /*if (state != PlaybackStateCompat.STATE_NONE && sessionToken != null) notificationDrawer.buildPlayingNotification(sessionToken) else*/ null
+            return *//*if (state != PlaybackStateCompat.STATE_NONE && sessionToken != null) notificationDrawer.buildPlayingNotification(sessionToken) else*//* null
         }
-    }
+    }*/
 
     /****
      * testPlaybackStateChange
@@ -464,8 +451,8 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
      */
     fun testPlaybackStateChange(metadata: MediaMetadataCompat?, playbackStateCompat: PlaybackStateCompat) {
         assert(IS_RUNNING_UNDER_TEST) // This method should only be used for testing
-        mediaControllerCallback?.onMetadataChanged(metadata)
-        mediaControllerCallback?.onPlaybackStateChanged(playbackStateCompat)
+//        mediaControllerCallback?.onMetadataChanged(metadata)
+//        mediaControllerCallback?.onPlaybackStateChanged(playbackStateCompat)
     }
 
 //    override fun onGetRoot(clientPackageName: String, clientUid: Int, bundle: Bundle?): BrowserRoot? {
