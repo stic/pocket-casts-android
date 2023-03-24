@@ -1132,7 +1132,8 @@ class MainActivity :
                 }
             } else if (action == MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH) {
                 val bundle = intent.extras ?: return
-                playbackManager.mediaSessionManager.playFromSearchExternal(bundle)
+                // FIXME
+                // playbackManager.mediaSessionManager.playFromSearchExternal(bundle)
             } else if (intent.extras?.getBoolean(
                     "extra_accl_intent",
                     false

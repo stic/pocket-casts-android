@@ -215,7 +215,11 @@ interface Settings {
         fun toIndex(): Int = options.indexOf(this)
     }
 
-    sealed class MediaNotificationControls(@StringRes val controlName: Int, @DrawableRes val iconRes: Int, val key: String) {
+    sealed class MediaNotificationControls(
+        @StringRes val controlName: Int,
+        @DrawableRes val iconRes: Int,
+        val key: String,
+    ) {
 
         companion object {
             val All
@@ -224,26 +228,54 @@ interface Settings {
 
             const val MAX_VISIBLE_OPTIONS = 3
 
-            private const val ARCHIVE_KEY = "default_media_control_archive"
-            private const val MARK_AS_PLAYED_KEY = "default_media_control_mark_as_played"
-            private const val PLAY_NEXT_KEY = "default_media_control_play_next_key"
-            private const val PLAYBACK_SPEED_KEY = "default_media_control_playback_speed_key"
-            private const val STAR_KEY = "default_media_control_star_key"
+            enum class NotificationActionKey(val value: String) {
+                ARCHIVE_KEY("default_media_control_archive"),
+                MARK_AS_PLAYED_KEY("default_media_control_mark_as_played"),
+                PLAY_NEXT_KEY("default_media_control_play_next_key"),
+                PLAYBACK_SPEED_KEY("default_media_control_playback_speed_key"),
+                STAR_KEY("default_media_control_star_key"),
+                SKIP_BACK("default_media_jump_back"),
+                SKIP_FWD("default_media_jump_forward");
+
+                companion object {
+                    fun fromString(value: String) = values().find { it.value == value }
+                }
+            }
 
             fun itemForId(id: String): MediaNotificationControls? {
                 return items[id]
             }
         }
 
-        object Archive : MediaNotificationControls(LR.string.archive, IR.drawable.ic_archive, ARCHIVE_KEY)
+        object Archive : MediaNotificationControls(
+            controlName = LR.string.archive,
+            iconRes = IR.drawable.ic_archive,
+            key = NotificationActionKey.ARCHIVE_KEY.value,
+        )
 
-        object MarkAsPlayed : MediaNotificationControls(LR.string.mark_as_played, IR.drawable.ic_markasplayed, MARK_AS_PLAYED_KEY)
+        object MarkAsPlayed : MediaNotificationControls(
+            controlName = LR.string.mark_as_played,
+            iconRes = IR.drawable.ic_markasplayed,
+            key = NotificationActionKey.MARK_AS_PLAYED_KEY.value,
+        )
 
-        object PlayNext : MediaNotificationControls(LR.string.play_next, com.google.android.gms.cast.framework.R.drawable.cast_ic_mini_controller_skip_next, PLAY_NEXT_KEY)
+        object PlayNext : MediaNotificationControls(
+            controlName = LR.string.play_next,
+            iconRes = com.google.android.gms.cast.framework.R.drawable.cast_ic_mini_controller_skip_next,
+            key = NotificationActionKey.PLAY_NEXT_KEY.value,
+        )
 
-        object PlaybackSpeed : MediaNotificationControls(LR.string.playback_speed, IR.drawable.auto_1x, PLAYBACK_SPEED_KEY)
+        object PlaybackSpeed : MediaNotificationControls(
+            controlName = LR.string.playback_speed,
+            iconRes = IR.drawable.auto_1x,
+            key = NotificationActionKey.PLAYBACK_SPEED_KEY.value,
+        )
 
-        object Star : MediaNotificationControls(LR.string.star, IR.drawable.ic_star, STAR_KEY)
+        object Star : MediaNotificationControls(
+            controlName = LR.string.star,
+            iconRes = IR.drawable.ic_star,
+            key = NotificationActionKey.STAR_KEY.value,
+        )
     }
 
     sealed class AutoArchiveInactive(val timeSeconds: Int) {

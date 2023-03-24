@@ -163,23 +163,11 @@ open class PlaybackManager @Inject constructor(
 
     var episodeSubscription: Disposable? = null
 
-    var mediaSessionManager = MediaSessionManager(
-        playbackManager = this,
-        podcastManager = podcastManager,
-        episodeManager = episodeManager,
-        playlistManager = playlistManager,
-        settings = settings,
-        context = application,
-        episodeAnalytics = episodeAnalytics
-    )
     var sleepAfterEpisode: Boolean = false
 
     // TODO - Make this a player instead?
     private var controller: MediaController? = null
     var pocketCastsPlayer: PocketCastsPlayer? = null
-
-//    val mediaSession: MediaSessionCompat
-//        get() = mediaSessionManager.mediaSession
 
     init {
         val sessionToken = SessionToken(application, ComponentName(application, PlaybackService::class.java))
@@ -203,7 +191,6 @@ open class PlaybackManager @Inject constructor(
 
         // load an initial playback state
         upNextQueue.setup()
-        mediaSessionManager.startObserving()
         updatePausedPlaybackState()
 
         launch {
@@ -742,7 +729,7 @@ open class PlaybackManager @Inject constructor(
     }
 
     fun updatePlayerEffects(effects: PlaybackEffects) {
-        launch {
+        launch(Dispatchers.Main) {
             val player = pocketCastsPlayer
             player?.setPlaybackEffects(effects)
 
