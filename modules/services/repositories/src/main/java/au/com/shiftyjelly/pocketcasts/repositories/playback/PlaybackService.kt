@@ -867,6 +867,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
             Timber.i("TEST123, onPostConnect: ${controller.packageName}")
             super.onPostConnect(session, controller)
 
+            // Controllers with version of 0 are the legacy controllers, see https://github.com/androidx/media/issues/165#issuecomment-1247227343
             if (customLayout.isNotEmpty() && controller.controllerVersion != 0) {
                 // Let Media3 controller (for instance the MediaNotificationProvider) know about the custom
                 // layout right after it connected.
@@ -1006,7 +1007,7 @@ open class PlaybackService : MediaLibraryService(), CoroutineScope {
                                         }
                                     }
 
-                                    mediaLibrarySession.setCustomLayout(controller, customLayout)
+                                    mediaLibrarySession.setCustomLayout(customLayout)
 //                                    onUpdateNotification(mediaLibrarySession)
                                 }
                                 is UserEpisode -> {
