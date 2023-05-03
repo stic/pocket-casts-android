@@ -13,6 +13,7 @@ import au.com.shiftyjelly.pocketcasts.models.type.PodcastsSortType
 import au.com.shiftyjelly.pocketcasts.models.type.Subscription
 import au.com.shiftyjelly.pocketcasts.models.type.SubscriptionFrequency
 import au.com.shiftyjelly.pocketcasts.models.type.TrimMode
+import au.com.shiftyjelly.pocketcasts.models.type.Username
 import au.com.shiftyjelly.pocketcasts.utils.Util
 import io.reactivex.Observable
 import kotlinx.coroutines.flow.StateFlow
@@ -613,4 +614,7 @@ interface Settings {
 
     fun setLastSelectedSubscriptionFrequency(frequency: SubscriptionFrequency)
     fun getLastSelectedSubscriptionFrequency(): SubscriptionFrequency?
+
+    fun setUsername(username: Username?)
+    fun getUsername(): Username
 }
