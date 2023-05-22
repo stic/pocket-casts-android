@@ -1228,14 +1228,14 @@ open class PlaybackManager @Inject constructor(
         focusWasPlaying = null
     }
 
-    override fun onFocusLoss(mayDuck: Boolean, transientLoss: Boolean) {
+    override fun onFocusLoss(playOverNotification: FocusManager.PlayOverNotificationSetting, transientLoss: Boolean) {
         val player = player
         if (player == null || player.isRemote) {
             return
         }
         // if we are playing but can't just reduce the volume then play when focus gained
         val playing = isPlaying()
-        if (!mayDuck && playing) {
+        if ((playOverNotification == FocusManager.PlayOverNotificationSetting.NEVER) && playing) {
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
             focusWasPlaying = Date()
 
@@ -1246,9 +1246,12 @@ open class PlaybackManager @Inject constructor(
         }
 
         // check if we need to reduce the volume
-        if (focusManager.canDuck()) {
+        if (playOverNotification == FocusManager.PlayOverNotificationSetting.DUCK) {
             player.setVolume(VOLUME_DUCK)
+            return
         }
+
+        player.setVolume(VOLUME_NORMAL)
     }
 
     override fun onFocusRequestFailed() {
