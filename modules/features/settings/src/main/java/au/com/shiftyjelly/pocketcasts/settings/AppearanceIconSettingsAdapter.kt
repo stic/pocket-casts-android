@@ -8,8 +8,6 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.RecyclerView
-import au.com.shiftyjelly.pocketcasts.models.to.SignInState
-import au.com.shiftyjelly.pocketcasts.models.type.SubscriptionType
 import au.com.shiftyjelly.pocketcasts.settings.databinding.AdapterAppearanceAppiconItemBinding
 import au.com.shiftyjelly.pocketcasts.ui.extensions.getThemeColor
 import au.com.shiftyjelly.pocketcasts.ui.helper.AppIcon
@@ -20,7 +18,7 @@ import au.com.shiftyjelly.pocketcasts.ui.R as UR
 
 class AppearanceIconSettingsAdapter(
     private var mainWidth: Int?,
-    private var signInState: SignInState?,
+    private var isPlusSignedIn: Boolean,
     private var selectedAppIcon: AppIcon.AppIconType,
     private val list: List<AppIcon.AppIconType>,
     private val clickListener: (AppIcon.AppIconType, AppIcon.AppIconType, Boolean) -> Unit
@@ -52,8 +50,8 @@ class AppearanceIconSettingsAdapter(
 
     override fun getItemCount() = list.size
 
-    fun updatePlusSignedIn(signInState: SignInState?) {
-        this.signInState = signInState
+    fun updatePlusSignedIn(value: Boolean) {
+        isPlusSignedIn = value
         notifyDataSetChanged()
     }
 
@@ -84,25 +82,20 @@ class AppearanceIconSettingsAdapter(
         }
 
         fun bind(appIcon: AppIcon.AppIconType, selected: Boolean) {
-            val isValidIcon = isValidIcon(appIcon)
-            binding.appIconItem.alpha = if (isValidIcon) 1.0f else 0.65f
+            val showOption = !appIcon.isPlus || isPlusSignedIn
+            binding.appIconItem.alpha = if (showOption) 1.0f else 0.65f
 
             val drawable = AppCompatResources.getDrawable(itemView.context, appIcon.settingsIcon)
             binding.imgIcon.setImageDrawable(drawable)
             var tickDrawable: Drawable? = null
-            if (isValidIcon && selected) {
+            if (showOption && selected) {
                 tickDrawable = AppCompatResources.getDrawable(itemView.context, R.drawable.ic_circle_tick)
-            } else if (!isValidIcon) {
-                val iconDrawable = when (appIcon.type) {
-                    SubscriptionType.PLUS -> R.drawable.ic_locked_plus
-                    SubscriptionType.PATRON -> R.drawable.ic_locked_patron
-                    SubscriptionType.NONE -> throw IllegalStateException("Unknown type found for AppIcon")
-                }
-                tickDrawable = AppCompatResources.getDrawable(itemView.context, iconDrawable)
+            } else if (!showOption) {
+                tickDrawable = AppCompatResources.getDrawable(itemView.context, R.drawable.ic_plus_bubble)
             }
             binding.imgTick.setImageDrawable(tickDrawable)
             binding.imgTick.contentDescription = binding.imgTick.resources.getString(if (selected) LR.string.on else LR.string.off)
-            binding.imgLock.isVisible = !isValidIcon
+            binding.imgLock.isVisible = !showOption
             binding.txtTitle.setText(appIcon.labelId)
 
             binding.outlinePanel1.setSelectedWithColors(selected, selectColor, deselectColor, strokeWidth)
@@ -114,16 +107,11 @@ class AppearanceIconSettingsAdapter(
             }
             val beforeAppIcon = selectedAppIcon
             val afterAppIcon = list[bindingAdapterPosition]
-            val validAppIcon = isValidIcon(afterAppIcon)
+            val validAppIcon = !afterAppIcon.isPlus || isPlusSignedIn
 
             selectedAppIcon = afterAppIcon
             clickListener(beforeAppIcon, afterAppIcon, validAppIcon)
             notifyDataSetChanged()
         }
-
-        private fun isValidIcon(appIcon: AppIcon.AppIconType) =
-            (appIcon.type == SubscriptionType.NONE) ||
-                (appIcon.type == SubscriptionType.PLUS && signInState?.isSignedInAsPlus == true) ||
-                (appIcon.type == SubscriptionType.PATRON && signInState?.isSignedInAsPatron == true)
     }
 }

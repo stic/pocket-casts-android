@@ -50,7 +50,6 @@ class OnboardingUpgradeFeaturesViewModel @Inject constructor(
     val state: StateFlow<OnboardingUpgradeFeaturesState> = _state
 
     private val source = savedStateHandle.get<OnboardingUpgradeSource>("source")
-    private val showPatronOnly = savedStateHandle.get<Boolean>("show_patron_only")
 
     init {
         if (BuildConfig.ADD_PATRON_ENABLED) {
@@ -90,7 +89,7 @@ class OnboardingUpgradeFeaturesViewModel @Inject constructor(
         val lastSelectedTier = settings.getLastSelectedSubscriptionTier().takeIf { source in listOf(OnboardingUpgradeSource.LOGIN, OnboardingUpgradeSource.PROFILE) }
         val lastSelectedFrequency = settings.getLastSelectedSubscriptionFrequency().takeIf { source in listOf(OnboardingUpgradeSource.LOGIN, OnboardingUpgradeSource.PROFILE) }
 
-        val showPatronOnly = source == OnboardingUpgradeSource.ACCOUNT_DETAILS || showPatronOnly == true
+        val showPatronOnly = source == OnboardingUpgradeSource.ACCOUNT_DETAILS
         val updatedSubscriptions =
             if (showPatronOnly) {
                 subscriptions.filter { it.tier == Subscription.SubscriptionTier.PATRON }
