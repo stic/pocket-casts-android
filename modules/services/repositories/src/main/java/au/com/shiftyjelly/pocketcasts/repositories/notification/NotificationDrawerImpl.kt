@@ -3,6 +3,7 @@ package au.com.shiftyjelly.pocketcasts.repositories.notification
 import android.app.Notification
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat.ACTION_PAUSE
@@ -13,6 +14,8 @@ import android.support.v4.media.session.PlaybackStateCompat.ACTION_STOP
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
+import androidx.wear.ongoing.OngoingActivity
+import androidx.wear.ongoing.Status
 import au.com.shiftyjelly.pocketcasts.models.db.helper.UserEpisodePodcastSubstitute
 import au.com.shiftyjelly.pocketcasts.models.entity.BaseEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
@@ -23,6 +26,7 @@ import au.com.shiftyjelly.pocketcasts.repositories.extensions.isPlaying
 import au.com.shiftyjelly.pocketcasts.repositories.images.PodcastImageLoader
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
+import au.com.shiftyjelly.pocketcasts.utils.Util
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -63,7 +67,8 @@ class NotificationDrawerImpl @Inject constructor(
             .setShowActionsInCompactView(0, 1, 2)
             .setShowCancelButton(true)
 
-        return builder.setContentIntent(controller.sessionActivity)
+        val notificationBuilder = builder
+            .setContentIntent(controller.sessionActivity)
             .setContentText(data.text)
             .setContentTitle(data.title)
             .setDeleteIntent(stopPendingIntent)
@@ -73,7 +78,22 @@ class NotificationDrawerImpl @Inject constructor(
             .setSmallIcon(IR.drawable.notification)
             .setStyle(mediaStyle)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Util.isWearOs(context)) {
+            val ongoingActivityStatus = Status.Builder()
+                .addTemplate(data.title)
+                .build()
+            val ongoingActivity = OngoingActivity.Builder(
+                context,
+                Settings.NotificationId.PLAYING.value,
+                notificationBuilder
+            )
+                .setStatus(ongoingActivityStatus)
+                .setTouchIntent(controller.sessionActivity)
+                .build()
+            ongoingActivity.apply(context)
+        }
+        return notificationBuilder.build()
     }
 
     private fun loadArtwork(podcast: Podcast): Bitmap? {
