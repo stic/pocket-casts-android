@@ -33,7 +33,7 @@ class WidgetManagerImpl @Inject constructor(
 ) : WidgetManager {
 
     override fun updateWidget(podcast: Podcast?, playing: Boolean, playingEpisode: BaseEpisode?) {
-        if (Util.isAutomotive(context)) {
+        if (Util.isAutomotive(context) || Util.isWearOs(context)) {
             return
         }
 
