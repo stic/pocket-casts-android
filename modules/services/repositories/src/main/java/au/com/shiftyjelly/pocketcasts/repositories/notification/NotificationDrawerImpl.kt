@@ -3,7 +3,6 @@ package au.com.shiftyjelly.pocketcasts.repositories.notification
 import android.app.Notification
 import android.content.Context
 import android.graphics.Bitmap
-import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat.ACTION_PAUSE
 import android.support.v4.media.session.PlaybackStateCompat.ACTION_PLAY
@@ -19,7 +18,6 @@ import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.entity.PodcastEpisode
 import au.com.shiftyjelly.pocketcasts.models.entity.UserEpisode
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
-import au.com.shiftyjelly.pocketcasts.repositories.extensions.isPlaying
 import au.com.shiftyjelly.pocketcasts.repositories.images.PodcastImageLoader
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
@@ -46,33 +44,12 @@ class NotificationDrawerImpl @Inject constructor(
     private var notificationData: NotificationData? = null
 
     override fun buildPlayingNotification(sessionToken: MediaSessionCompat.Token): Notification {
-        val controller = MediaControllerCompat(context, sessionToken)
-        val description = controller.metadata.description
-        val playbackState = controller.playbackState
-        val data = getNotificationData(description.mediaId)
 
         val builder = notificationHelper.playbackChannelBuilder()
 
-        builder.addAction(skipBackAction)
-        builder.addAction(if (playbackState.isPlaying) pauseAction else playAction)
-        builder.addAction(skipForwardAction)
-
-        val mediaStyle = MediaStyle()
-            .setCancelButtonIntent(stopPendingIntent)
-            .setMediaSession(sessionToken)
-            .setShowActionsInCompactView(0, 1, 2)
-            .setShowCancelButton(true)
-
-        return builder.setContentIntent(controller.sessionActivity)
-            .setContentText(data.text)
-            .setContentTitle(data.title)
-            .setDeleteIntent(stopPendingIntent)
-            .setLargeIcon(data.icon)
-            .setOnlyAlertOnce(true)
-            .setShowWhen(false)
+        return builder
+            .setStyle(MediaStyle().setMediaSession(sessionToken))
             .setSmallIcon(IR.drawable.notification)
-            .setStyle(mediaStyle)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
     }
 
