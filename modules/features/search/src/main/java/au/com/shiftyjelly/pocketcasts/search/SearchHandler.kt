@@ -130,7 +130,9 @@ class SearchHandler @Inject constructor(
                     }
                     .toObservable()
 
-                if (settings.isFeatureFlagSearchImprovementsEnabled() && !it.startsWith("http")) {
+                if (it.startsWith("http")) {
+                    podcastServerSearch
+                } else {
                     val episodesServerSearch = cacheServerManager
                         .searchEpisodes(it)
                         .map { episodeSearch ->
@@ -139,8 +141,6 @@ class SearchHandler @Inject constructor(
                         }
 
                     podcastServerSearch.mergeWith(episodesServerSearch)
-                } else {
-                    podcastServerSearch
                 }
                     .subscribeOn(Schedulers.io())
                     .onErrorReturn { exception ->

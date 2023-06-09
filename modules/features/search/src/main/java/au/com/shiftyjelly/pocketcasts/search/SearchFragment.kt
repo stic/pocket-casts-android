@@ -22,7 +22,6 @@ import au.com.shiftyjelly.pocketcasts.models.entity.Podcast
 import au.com.shiftyjelly.pocketcasts.models.to.EpisodeItem
 import au.com.shiftyjelly.pocketcasts.models.to.SearchHistoryEntry
 import au.com.shiftyjelly.pocketcasts.models.type.EpisodeViewSource
-import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.search.SearchResultsFragment.Companion.ResultsType
 import au.com.shiftyjelly.pocketcasts.search.SearchViewModel.SearchResultType
 import au.com.shiftyjelly.pocketcasts.search.databinding.FragmentSearchBinding
@@ -49,7 +48,6 @@ private const val SEARCH_RESULTS_TAG = "search_results"
 @AndroidEntryPoint
 class SearchFragment : BaseFragment() {
     @Inject lateinit var analyticsTracker: AnalyticsTrackerWrapper
-    @Inject lateinit var settings: Settings
 
     interface Listener {
         fun onSearchEpisodeClick(episodeUuid: String, podcastUuid: String, source: EpisodeViewSource)
@@ -242,8 +240,7 @@ class SearchFragment : BaseFragment() {
                         onFolderClick = ::onFolderClick,
                         onShowAllCLick = ::onShowAllClick,
                         onScroll = { UiUtil.hideKeyboard(searchView) },
-                        onlySearchRemote = onlySearchRemote,
-                        settings = settings
+                        onlySearchRemote = onlySearchRemote
                     )
                 }
             }
