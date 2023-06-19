@@ -28,9 +28,9 @@ class AppIcon @Inject constructor(
         DEFAULT(
             id = "default",
             labelId = LR.string.settings_app_icon_default,
-            settingsIcon = IR.drawable.ic_appicon0,
+            settingsIcon = if (BuildConfig.DEBUG) IR.drawable.appicon_radioactive else IR.drawable.ic_appicon0,
             type = SubscriptionType.NONE,
-            launcherIcon = IR.mipmap.ic_launcher,
+            launcherIcon = if (BuildConfig.DEBUG) IR.mipmap.ic_launcher_radioactive else IR.mipmap.ic_launcher,
             aliasName = ".ui.MainActivity_0"
         ),
         DARK(
@@ -210,7 +210,11 @@ class AppIcon @Inject constructor(
         AppIconType.values().forEach { iconType ->
             val componentName = ComponentName(componentPackage, "$classPath${iconType.aliasName}")
             // If we are using the default icon we just switch every alias off
-            val enabledFlag = if (selectedIconType == iconType && selectedIconType != AppIconType.DEFAULT) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            val enabledFlag = if (selectedIconType == iconType) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
             context.packageManager.setComponentEnabledSetting(componentName, enabledFlag, PackageManager.DONT_KILL_APP)
         }
     }
