@@ -27,6 +27,7 @@ import au.com.shiftyjelly.pocketcasts.models.to.Chapters
 import au.com.shiftyjelly.pocketcasts.models.to.PlaybackEffects
 import au.com.shiftyjelly.pocketcasts.models.type.EpisodePlayingStatus
 import au.com.shiftyjelly.pocketcasts.models.type.UserEpisodeServerStatus
+import au.com.shiftyjelly.pocketcasts.preferences.PlayOverNotificationSetting
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
 import au.com.shiftyjelly.pocketcasts.repositories.R
 import au.com.shiftyjelly.pocketcasts.repositories.chromecast.CastManager
@@ -1231,14 +1232,14 @@ open class PlaybackManager @Inject constructor(
         focusWasPlaying = null
     }
 
-    override fun onFocusLoss(playOverNotification: FocusManager.PlayOverNotificationSetting, transientLoss: Boolean) {
+    override fun onFocusLoss(playOverNotification: PlayOverNotificationSetting, transientLoss: Boolean) {
         val player = player
         if (player == null || player.isRemote) {
             return
         }
         // if we are playing but can't just reduce the volume then play when focus gained
         val playing = isPlaying()
-        if ((playOverNotification == FocusManager.PlayOverNotificationSetting.NEVER) && playing) {
+        if ((playOverNotification == PlayOverNotificationSetting.NEVER) && playing) {
             LogBuffer.i(LogBuffer.TAG_PLAYBACK, "Focus lost while playing")
             focusWasPlaying = Date()
 
@@ -1249,7 +1250,7 @@ open class PlaybackManager @Inject constructor(
         }
 
         // check if we need to reduce the volume
-        if (playOverNotification == FocusManager.PlayOverNotificationSetting.DUCK) {
+        if (playOverNotification == PlayOverNotificationSetting.DUCK) {
             player.setVolume(VOLUME_DUCK)
             return
         }
