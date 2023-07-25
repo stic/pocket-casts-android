@@ -5,7 +5,6 @@ plugins {
 }
 
 apply plugin: 'com.android.application'
-apply plugin: 'com.google.gms.google-services'
 
 apply from: "../base.gradle"
 apply plugin: 'com.google.android.gms.oss-licenses-plugin'
@@ -64,6 +63,18 @@ android {
 
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             shrinkResources true
+        }
+    }
+
+    productFlavors {
+        free {
+            applicationIdSuffix ".free"
+            afterEvaluate {
+                tasks.matching { it.name.contains("GoogleServices") && !it.name.contains("Gplay") }*.enabled = false
+            }
+        }
+        gplay {
+            apply plugin: 'com.google.gms.google-services'
         }
     }
 }

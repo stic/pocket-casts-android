@@ -149,6 +149,17 @@ android {
             }
         }
     }
+
+    flavorDimensions "license"
+    productFlavors {
+        free {
+            dimension "license"
+        }
+        gplay {
+            dimension "license"
+            isDefault true
+        }
+    }
 }
 
 dependencies {
@@ -168,7 +179,7 @@ dependencies {
     implementation androidLibs.preference
     implementation androidLibs.browser
     implementation androidLibs.constraintLayout
-    implementation androidLibs.cast
+    gplayImplementation androidLibs.cast
     implementation platform(androidLibs.firebaseBom)
     implementation androidLibs.firebaseAnalytics
     implementation androidLibs.firebaseConfig
