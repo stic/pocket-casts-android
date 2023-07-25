@@ -16,7 +16,7 @@ steps:
   - label: 'Unit tests'
     command: |
       echo "--- 🧪 Testing"
-      ./gradlew testDebugUnitTest
+      ./gradlew testFreeDebugUnitTest testGplayDebugUnitTest
     plugins: *common_plugins
 
   - label: 'Spotless formatting check'
@@ -28,7 +28,7 @@ steps:
   - label: 'Lint'
     command: |
       echo "--- 🧹 Linting"
-      ./gradlew lintDebug
+      ./gradlew lintGplayDebug
     plugins: *common_plugins
     artifact_paths:
       - "**/build/reports/lint-results*.*"
