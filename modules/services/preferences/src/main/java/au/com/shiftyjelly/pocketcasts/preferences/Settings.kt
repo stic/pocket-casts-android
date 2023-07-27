@@ -297,7 +297,6 @@ interface Settings {
     val podcastBadgeTypeObservable: Observable<BadgeType>
     val podcastSortTypeObservable: Observable<PodcastsSortType>
     val selectPodcastSortTypeObservable: Observable<PodcastsSortType>
-    val skipForwardInSecsObservable: Observable<Int>
     val skipBackwardInSecsObservable: Observable<Int>
     val playbackEffectsObservable: Observable<PlaybackEffects>
     val refreshStateObservable: Observable<RefreshState>
@@ -333,8 +332,7 @@ interface Settings {
 
     fun isScreenReaderOn(): Boolean
 
-    fun getSkipForwardInSecs(): Int
-    fun getSkipForwardInMs(): Long
+    val skipForwardInSecs: UserSetting<Int>
     fun getSkipBackwardInSecs(): Int
     fun getSkipBackwardInMs(): Long
 
@@ -518,11 +516,8 @@ interface Settings {
     fun getEpisodeSearchDebounceMs(): Long
     fun defaultPodcastGrouping(): PodcastGrouping
     fun setDefaultPodcastGrouping(podcastGrouping: PodcastGrouping)
-    fun setSkipForwardInSec(value: Int)
     fun setSkipBackwardInSec(value: Int)
-    fun setSkipForwardNeedsSync(value: Boolean)
     fun setSkipBackNeedsSync(value: Boolean)
-    fun getSkipForwardNeedsSync(): Boolean
     fun getSkipBackNeedsSync(): Boolean
 
     fun getMarketingOptIn(): Boolean
