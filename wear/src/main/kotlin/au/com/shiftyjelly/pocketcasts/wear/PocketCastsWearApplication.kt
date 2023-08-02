@@ -105,13 +105,13 @@ class PocketCastsWearApplication : Application(), Configuration.Provider {
                 playbackManager.setup()
                 downloadManager.setup(episodeManager, podcastManager, playlistManager, playbackManager)
 
-                val storageChoice = settings.getStorageChoice()
+                val storageChoice = settings.storageChoice.flow.value
                 if (storageChoice == null) {
                     val folder = StorageOptions()
                         .getFolderLocations(this@PocketCastsWearApplication)
                         .firstOrNull()
                     if (folder != null) {
-                        settings.setStorageChoice(folder.filePath, folder.label)
+                        settings.storageChoice.set(folder.toStorageChoiceSetting())
                     } else {
                         settings.setStorageCustomFolder(this@PocketCastsWearApplication.filesDir.absolutePath)
                     }

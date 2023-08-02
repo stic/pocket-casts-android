@@ -27,6 +27,7 @@ import au.com.shiftyjelly.pocketcasts.preferences.model.AppIconSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.NewEpisodeNotificationActionSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.NotificationVibrateSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.PlayOverNotificationSetting
+import au.com.shiftyjelly.pocketcasts.preferences.model.StorageChoiceSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.ThemeSetting
 import au.com.shiftyjelly.pocketcasts.utils.AppPlatform
 import au.com.shiftyjelly.pocketcasts.utils.Util
@@ -282,15 +283,17 @@ class SettingsImpl @Inject constructor(
             defaultValue = NotificationVibrateSetting.DEFAULT,
             sharedPrefs = sharedPreferences,
             fromString = {
-                try {
-                    val intValue = Integer.parseInt(it)
-                    NotificationVibrateSetting
-                        .values()
-                        .find { setting ->
-                            setting.intValue == intValue
-                        }
-                } catch (e: NumberFormatException) {
-                    null
+                it?.let {
+                    try {
+                        val intValue = Integer.parseInt(it)
+                        NotificationVibrateSetting
+                            .values()
+                            .find { setting ->
+                                setting.intValue == intValue
+                            }
+                    } catch (e: NumberFormatException) {
+                        null
+                    }
                 } ?: NotificationVibrateSetting.DEFAULT
             },
             toString = { it.intValue.toString() }
@@ -301,7 +304,13 @@ class SettingsImpl @Inject constructor(
         sharedPrefKey = "notificationRingtone",
         defaultValue = NotificationSound(context = context),
         sharedPrefs = sharedPreferences,
-        fromString = { NotificationSound(it, context) },
+        fromString = {
+            if (it != null) {
+                NotificationSound(it, context)
+            } else {
+                NotificationSound(context = context)
+            }
+        },
         toString = { it.path }
     )
 
@@ -311,24 +320,32 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
     )
 
-    override fun usingCustomFolderStorage(): Boolean {
-        val storageChoice = getStorageChoice()
-        return storageChoice != null && storageChoice == Settings.STORAGE_ON_CUSTOM_FOLDER
-    }
+    override fun usingCustomFolderStorage(): Boolean =
+        storageChoice.flow.value?.path == Settings.STORAGE_ON_CUSTOM_FOLDER
 
-    override fun getStorageChoice(): String? {
-        return sharedPreferences.getString(Settings.PREFERENCE_STORAGE_CHOICE, null)
-    }
+    override val storageChoice = run {
+        val pathKey = Settings.PREFERENCE_STORAGE_CHOICE
+        val nameKey = "storageChoiceName"
+        object : UserSetting<StorageChoiceSetting?>(
+            sharedPrefKey = pathKey,
+            sharedPrefs = sharedPreferences,
+        ) {
+            override fun get(): StorageChoiceSetting? =
+                sharedPrefs.getString(pathKey, null)?.let { filePath ->
+                    sharedPrefs.getString(nameKey, null)
+                        ?.let { label ->
+                            StorageChoiceSetting(filePath, label)
+                        }
+                }
 
-    override fun getStorageChoiceName(): String? {
-        return sharedPreferences.getString(Settings.PREFERENCE_STORAGE_CHOICE_NAME, null)
-    }
-
-    override fun setStorageChoice(choice: String?, name: String?) {
-        val editor = sharedPreferences.edit()
-        editor.putString(Settings.PREFERENCE_STORAGE_CHOICE, choice)
-        editor.putString(Settings.PREFERENCE_STORAGE_CHOICE_NAME, name)
-        editor.apply()
+            override fun persist(value: StorageChoiceSetting?, commit: Boolean) {
+                sharedPreferences.edit()?.run {
+                    putString(pathKey, value?.path)
+                    putString(nameKey, value?.name)
+                    apply()
+                }
+            }
+        }
     }
 
     override fun getStorageCustomFolder(): String {
@@ -449,18 +466,25 @@ class SettingsImpl @Inject constructor(
         return getBoolean(Settings.PREFERENCE_AUTO_SHOW_PLAYED, false)
     }
 
-    override val playOverNotification = UserSetting.PrefFromString<PlayOverNotificationSetting>(
-        sharedPrefKey = "overrideNotificationAudio",
-        defaultValue = if (sharedPreferences.getBoolean("overrideAudioInterruption", false)) {
+    override val playOverNotification = run {
+        val defaultValue = if (sharedPreferences.getBoolean("overrideAudioInterruption", false)) {
             // default to ALWAYS because legacy override audio interruption was set to true
             PlayOverNotificationSetting.ALWAYS
         } else {
             PlayOverNotificationSetting.NEVER
-        },
-        sharedPrefs = sharedPreferences,
-        fromString = { PlayOverNotificationSetting.fromPreferenceString(it) },
-        toString = { it.preferenceInt.toString() }
-    )
+        }
+        UserSetting.PrefFromString(
+            sharedPrefKey = "overrideNotificationAudio",
+            defaultValue = defaultValue,
+            sharedPrefs = sharedPreferences,
+            fromString = {
+                it?.let {
+                    PlayOverNotificationSetting.fromPreferenceString(it)
+                } ?: defaultValue
+            },
+            toString = { it.preferenceInt.toString() }
+        )
+    }
 
     override fun hasBlockAlreadyRun(label: String): Boolean {
         return sharedPreferences.getBoolean("blockAlreadyRun$label", false)
@@ -923,7 +947,9 @@ class SettingsImpl @Inject constructor(
         sharedPrefs = sharedPreferences,
         fromString = {
             when (it) {
-                NewEpisodeNotificationActionSetting.Default.stringValue -> NewEpisodeNotificationActionSetting.Default
+                NewEpisodeNotificationActionSetting.Default.stringValue,
+                null -> NewEpisodeNotificationActionSetting.Default
+
                 else -> NewEpisodeNotificationActionSetting.ValueOf(it)
             }
         },

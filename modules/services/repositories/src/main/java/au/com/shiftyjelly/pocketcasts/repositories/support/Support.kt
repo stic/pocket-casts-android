@@ -373,7 +373,7 @@ class Support @Inject constructor(
             }
 
             val storageFolder = fileStorage.storageDirectory.absolutePath
-            output.append("Storage: ").append(if (settings.usingCustomFolderStorage()) "Custom Folder" else settings.getStorageChoiceName()).append(", ").append(storageFolder).append(eol)
+            output.append("Storage: ").append(if (settings.usingCustomFolderStorage()) "Custom Folder" else settings.storageChoice.flow.value?.name).append(", ").append(storageFolder).append(eol)
             output.append("Storage options:").append(eol)
             val storageOptions = StorageOptions()
             for (folderLocation in storageOptions.getFolderLocations(context)) {

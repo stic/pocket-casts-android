@@ -137,7 +137,7 @@ public class FileStorage {
 	public File getBaseStorageDirectory() throws StorageException {
 		if (context == null) throw new StorageException("Context is null");
 		
-		return getBaseStorageDirectory(settings.getStorageChoice(), context);
+		return getBaseStorageDirectory(settings.getStorageChoice().getFlow().getValue().getPath(), context);
 	}
 	
 	public File getBaseStorageDirectory(String choice, Context context) throws StorageException {

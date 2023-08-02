@@ -3,6 +3,8 @@ package au.com.shiftyjelly.pocketcasts.settings.viewmodel
 import android.content.Context
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.UserSetting
+import au.com.shiftyjelly.pocketcasts.preferences.model.StorageChoiceSetting
 import au.com.shiftyjelly.pocketcasts.repositories.file.FileStorage
 import au.com.shiftyjelly.pocketcasts.repositories.file.FolderLocation
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.EpisodeManager
@@ -15,6 +17,7 @@ import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -60,9 +63,15 @@ class StorageSettingsViewModelTest {
     private lateinit var analyticsTracker: AnalyticsTrackerWrapper
 
     @Mock
+    private lateinit var storageChoiceSetting: UserSetting<StorageChoiceSetting?>
+    @Mock
+    private lateinit var storageChoiceNameSetting: UserSetting<String?>
+
+    @Mock
     @ApplicationContext
     private lateinit var context: Context
     private lateinit var viewModel: StorageSettingsViewModel
+    private lateinit var storageChoiceFlow: MutableStateFlow<StorageChoiceSetting?>
 
     @Rule
     @JvmField
@@ -72,8 +81,12 @@ class StorageSettingsViewModelTest {
     fun setUp() {
         whenever(context.getString(any())).thenReturn("")
         whenever(context.getString(any(), any())).thenReturn("")
-        whenever(settings.getStorageChoiceName()).thenReturn("")
         whenever(episodeManager.observeDownloadedEpisodes()).thenReturn(Flowable.empty())
+
+        whenever(settings.storageChoice).thenReturn(storageChoiceSetting)
+        storageChoiceFlow = MutableStateFlow(null)
+        whenever(storageChoiceSetting.flow).thenReturn(storageChoiceFlow)
+
         viewModel = StorageSettingsViewModel(
             podcastManager,
             episodeManager,
@@ -122,11 +135,11 @@ class StorageSettingsViewModelTest {
         val folderLocation = FolderLocation("/path", "Phone", "")
         startViewModelAndResumeFragment(folderLocations = listOf(folderLocation), sdkVersion = 28)
         whenever(settings.usingCustomFolderStorage()).thenReturn(false)
-        whenever(settings.getStorageChoice()).thenReturn(folderLocation.filePath)
+        storageChoiceFlow.value = folderLocation.toStorageChoiceSetting()
 
         viewModel.state.value.storageChoiceState.onStateChange(folderLocation)
 
-        verify(settings).setStorageChoice(folderLocation.filePath, folderLocation.label)
+        verify(settings.storageChoice).set(folderLocation.toStorageChoiceSetting())
         assertFalse(viewModel.state.value.storageFolderState.isVisible)
     }
 

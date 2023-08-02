@@ -161,26 +161,26 @@ class PocketCastsApplication : Application(), Configuration.Provider {
                 val isRestoreFromBackup = settings.isRestoreFromBackup()
                 // as this may be a different device clear the storage location on a restore
                 if (isRestoreFromBackup) {
-                    settings.setStorageChoice(null, null)
+                    settings.storageChoice.set(null)
                 }
 
                 // migrate old storage locations
-                val storageChoice = settings.getStorageChoice()
+                val storageChoice = settings.storageChoice.flow.value
                 if (storageChoice == null) {
                     // the user doesn't have a storage choice, give them one
                     val storageOptions = StorageOptions()
                     val locationsAvailable = storageOptions.getFolderLocations(this@PocketCastsApplication)
-                    if (locationsAvailable.size > 0) {
+                    if (locationsAvailable.isNotEmpty()) {
                         val folder = locationsAvailable[0]
-                        settings.setStorageChoice(folder.filePath, folder.label)
+                        settings.storageChoice.set(folder.toStorageChoiceSetting())
                     } else {
                         val location = this@PocketCastsApplication.filesDir
                         settings.setStorageCustomFolder(location.absolutePath)
                     }
-                } else if (storageChoice.equals(Settings.LEGACY_STORAGE_ON_PHONE, ignoreCase = true)) {
+                } else if (storageChoice.path.equals(Settings.LEGACY_STORAGE_ON_PHONE, ignoreCase = true)) {
                     val location = this@PocketCastsApplication.filesDir
                     settings.setStorageCustomFolder(location.absolutePath)
-                } else if (storageChoice.equals(Settings.LEGACY_STORAGE_ON_SD_CARD, ignoreCase = true)) {
+                } else if (storageChoice.path.equals(Settings.LEGACY_STORAGE_ON_SD_CARD, ignoreCase = true)) {
                     val location = findExternalStorageDirectory()
                     settings.setStorageCustomFolder(location.absolutePath)
                 }

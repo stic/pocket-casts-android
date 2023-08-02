@@ -68,14 +68,16 @@ class StorageSettingsViewModel
         get() = if (settings.usingCustomFolderStorage()) {
             context.getString(LR.string.settings_storage_custom_folder)
         } else {
-            settings.getStorageChoiceName()
+            settings.storageChoice.flow.value?.name
         }
 
     private val storageFolderSummary: String
         get() = if (settings.usingCustomFolderStorage()) {
             settings.getStorageCustomFolder()
         } else {
-            context.getString(LR.string.settings_storage_using, settings.getStorageChoiceName())
+            settings.storageChoice.flow.value?.name?.let {
+                context.getString(LR.string.settings_storage_using, it)
+            } ?: ""
         }
 
     private lateinit var foldersAvailable: List<FolderLocation>
@@ -106,7 +108,7 @@ class StorageSettingsViewModel
     private fun initState() = State(
         downloadedFilesState = State.DownloadedFilesState(),
         storageChoiceState = State.StorageChoiceState(
-            title = settings.getStorageChoice(),
+            title = settings.storageChoice.flow.value?.path,
             summary = storageChoiceSummary,
             onStateChange = { folderLocation ->
                 onStorageChoiceChange(folderLocation.filePath)
@@ -235,13 +237,16 @@ class StorageSettingsViewModel
             }
         } else {
             // store the old folder value, this is still available until we set it below
-            val oldFolderValue =
-                if (settings.usingCustomFolderStorage()) settings.getStorageCustomFolder() else settings.getStorageChoice()
+            val oldFolderValue = if (settings.usingCustomFolderStorage()) {
+                settings.getStorageCustomFolder()
+            } else {
+                settings.storageChoice.flow.value?.path
+            }
 
             // set the name for this folder
             for (folder in foldersAvailable) {
                 if (folder.filePath == folderPathChosen) {
-                    settings.setStorageChoice(folderPathChosen, folder.label)
+                    settings.storageChoice.set(folder.toStorageChoiceSetting())
                     updateStorageLabels()
                     break
                 }

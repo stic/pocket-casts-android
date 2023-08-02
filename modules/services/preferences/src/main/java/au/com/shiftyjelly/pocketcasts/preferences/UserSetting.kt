@@ -71,7 +71,7 @@ abstract class UserSetting<T>(
         sharedPrefKey = sharedPrefKey,
         defaultValue = defaultValue,
         sharedPrefs = sharedPrefs,
-        fromString = { it },
+        fromString = { it ?: defaultValue },
         toString = { it },
     )
 
@@ -108,10 +108,10 @@ abstract class UserSetting<T>(
     // This persists the parameterized object as a String in shared preferences.
     open class PrefFromString<T>(
         sharedPrefKey: String,
-        private val defaultValue: T,
+        defaultValue: T,
         sharedPrefs: SharedPreferences,
-        private val fromString: (String) -> T,
-        private val toString: (T) -> String,
+        private val fromString: (String?) -> T, // nullable string so the type parameter can be nullable
+        private val toString: (T) -> String?, // nullable string so the type parameter can be nullable
     ) : UserSetting<T>(
         sharedPrefKey = sharedPrefKey,
         sharedPrefs = sharedPrefs,
@@ -186,7 +186,7 @@ abstract class UserSetting<T>(
         sharedPrefs = sharedPrefs,
         fromString = { value ->
             try {
-                val valueInt = Integer.parseInt(value)
+                val valueInt = Integer.parseInt(value ?: defaultValue.toString())
                 if (valueInt <= 0) defaultValue else valueInt
             } catch (nfe: NumberFormatException) {
                 defaultValue

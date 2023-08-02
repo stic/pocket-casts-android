@@ -17,6 +17,7 @@ import au.com.shiftyjelly.pocketcasts.preferences.model.AppIconSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.NewEpisodeNotificationActionSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.NotificationVibrateSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.PlayOverNotificationSetting
+import au.com.shiftyjelly.pocketcasts.preferences.model.StorageChoiceSetting
 import au.com.shiftyjelly.pocketcasts.preferences.model.ThemeSetting
 import au.com.shiftyjelly.pocketcasts.utils.Util
 import io.reactivex.Observable
@@ -71,9 +72,7 @@ interface Settings {
         const val PREFERENCE_MARKETING_OPT_IN_NEEDS_SYNC = "marketingOptInNeedsSync"
         const val PREFERENCE_FREE_GIFT_ACKNOWLEDGED = "freeGiftAck"
         const val PREFERENCE_FREE_GIFT_ACKNOWLEDGED_NEEDS_SYNC = "freeGiftAckNeedsSync"
-
         const val PREFERENCE_STORAGE_CHOICE = "storageChoice"
-        const val PREFERENCE_STORAGE_CHOICE_NAME = "storageChoiceName"
         const val PREFERENCE_STORAGE_CUSTOM_FOLDER = "storageCustomFolder"
         const val PREFERENCE_PODCAST_LIBRARY_SORT = "podcastLibrarySort"
         const val PREFERENCE_PODCAST_LIBRARY_SORT_NEEDS_SYNC = "podcastLibrarySortNeedsSync"
@@ -333,9 +332,7 @@ interface Settings {
 
     fun usingCustomFolderStorage(): Boolean
 
-    fun getStorageChoice(): String?
-    fun getStorageChoiceName(): String?
-    fun setStorageChoice(choice: String?, name: String?)
+    val storageChoice: UserSetting<StorageChoiceSetting?>
     fun getStorageCustomFolder(): String
     fun setStorageCustomFolder(folder: String)
 
