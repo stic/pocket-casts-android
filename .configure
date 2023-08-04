@@ -15,7 +15,7 @@
     },
     {
       "file": "android/pocket-casts/google-services.json",
-      "destination": "app/google-services.json",
+      "destination": "app/src/gplay/google-services.json",
       "encrypt": true
     },
     {
