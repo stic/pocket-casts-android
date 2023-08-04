@@ -78,7 +78,6 @@ interface Settings {
         const val PREFERENCE_PODCAST_LIBRARY_SORT = "podcastLibrarySort"
         const val PREFERENCE_PODCAST_LIBRARY_SORT_NEEDS_SYNC = "podcastLibrarySortNeedsSync"
         const val PREFERENCE_SELECT_PODCAST_LIBRARY_SORT = "selectPodcastLibrarySort"
-        const val PREFERENCE_WARN_WHEN_NOT_ON_WIFI = "warnWhenNotOnWifi"
         const val PREFERENCE_SYNC_ON_METERED = "SyncWhenOnMetered"
         const val PREFERENCE_LAST_MODIFIED = "lastModified"
         const val PREFERENCE_FIRST_SYNC_RUN = "firstSyncRun"
@@ -289,8 +288,7 @@ interface Settings {
     fun getDiscoveryCountryCode(): String
     fun setDiscoveryCountryCode(code: String)
 
-    fun warnOnMeteredNetwork(): Boolean
-    fun setWarnOnMeteredNetwork(warn: Boolean)
+    val warnOnMeteredNetwork: UserSetting<Boolean>
 
     fun getPopularPodcastCountryCode(): String
 

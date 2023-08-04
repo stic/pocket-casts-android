@@ -486,7 +486,10 @@ class EpisodeFragment : BaseDialogFragment() {
                 }
             } else {
                 context?.let { context ->
-                    if (settings.warnOnMeteredNetwork() && !Network.isUnmeteredConnection(context) && viewModel.shouldDownload()) {
+                    val shouldShowWarning = settings.warnOnMeteredNetwork.flow.value &&
+                        !Network.isUnmeteredConnection(context) &&
+                        viewModel.shouldDownload()
+                    if (shouldShowWarning) {
                         warningsHelper.downloadWarning(episodeUUID!!, "episode card")
                             .show(parentFragmentManager, "download warning")
                     } else {

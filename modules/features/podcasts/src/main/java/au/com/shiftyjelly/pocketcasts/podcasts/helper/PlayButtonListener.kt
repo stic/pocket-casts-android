@@ -91,11 +91,15 @@ class PlayButtonListener @Inject constructor(
     }
 
     override fun onDownload(episodeUuid: String) {
-        if (settings.warnOnMeteredNetwork() && !Network.isUnmeteredConnection(activity) && activity is AppCompatActivity) {
+        val shouldWarnOnMeteredNetwork = settings.warnOnMeteredNetwork.flow.value
+        if (shouldWarnOnMeteredNetwork &&
+            !Network.isUnmeteredConnection(activity) &&
+            activity is AppCompatActivity
+        ) {
             warningsHelper.downloadWarning(episodeUuid, "play button")
                 .show(activity.supportFragmentManager, "download warning")
         } else {
-            download(episodeUuid, waitForWifi = settings.warnOnMeteredNetwork())
+            download(episodeUuid, waitForWifi = shouldWarnOnMeteredNetwork)
         }
     }
 

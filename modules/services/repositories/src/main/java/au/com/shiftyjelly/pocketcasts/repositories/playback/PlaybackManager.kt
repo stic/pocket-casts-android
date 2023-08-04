@@ -348,7 +348,9 @@ open class PlaybackManager @Inject constructor(
     }
 
     fun shouldWarnAboutPlayback(episodeUUID: String? = upNextQueue.currentEpisode?.uuid): Boolean {
-        return settings.warnOnMeteredNetwork() && !Network.isUnmeteredConnection(application) && lastWarnedPlayedEpisodeUuid != episodeUUID
+        return settings.warnOnMeteredNetwork.flow.value &&
+            !Network.isUnmeteredConnection(application) &&
+            lastWarnedPlayedEpisodeUuid != episodeUUID
     }
 
     fun getPlaybackSpeed(): Double {
@@ -1492,7 +1494,7 @@ open class PlaybackManager @Inject constructor(
         if (!episode.isDownloaded) {
             if (!Util.isCarUiMode(application) &&
                 !Util.isWearOs(application) && // The watch handles these warnings before this is called
-                settings.warnOnMeteredNetwork() &&
+                settings.warnOnMeteredNetwork.flow.value &&
                 !Network.isUnmeteredConnection(application) &&
                 !forceStream &&
                 play
