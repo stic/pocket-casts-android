@@ -2,6 +2,7 @@ package au.com.shiftyjelly.pocketcasts.preferences
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -197,4 +198,18 @@ abstract class UserSetting<T>(
             intValue.toString()
         }
     )
+
+    // This manual mock is needed to avoid problems when accessing a lazily initialized UserSetting::flow
+    // from a mocked Settings class
+    @VisibleForTesting
+    class MockUserSetting<T>(
+        private val initialValue: T,
+        mockSharedPrefs: SharedPreferences,
+    ) : UserSetting<T>(
+        sharedPrefKey = "a_shared_pref_key",
+        sharedPrefs = mockSharedPrefs,
+    ) {
+        override fun get(): T = initialValue
+        override fun persist(value: T, commit: Boolean) {}
+    }
 }

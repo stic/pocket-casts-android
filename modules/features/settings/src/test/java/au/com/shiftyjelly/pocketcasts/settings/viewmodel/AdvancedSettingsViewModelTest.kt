@@ -3,6 +3,7 @@ package au.com.shiftyjelly.pocketcasts.settings.viewmodel
 import android.content.Context
 import au.com.shiftyjelly.pocketcasts.analytics.AnalyticsTrackerWrapper
 import au.com.shiftyjelly.pocketcasts.preferences.Settings
+import au.com.shiftyjelly.pocketcasts.preferences.UserSetting
 import au.com.shiftyjelly.pocketcasts.settings.viewmodel.utils.MainCoroutineRule
 import dagger.hilt.android.qualifiers.ApplicationContext
 import junit.framework.TestCase
@@ -13,7 +14,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.junit.MockitoJUnitRunner
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 @RunWith(MockitoJUnitRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -34,7 +36,10 @@ class AdvancedSettingsViewModelTest {
 
     @Before
     fun setUp() {
-        whenever(settings.syncOnMeteredNetwork()).thenReturn(false)
+        settings = mock {
+            on { backgroundRefresh } doReturn UserSetting.MockUserSetting(true, mock())
+            on { syncOnMeteredNetwork() } doReturn false
+        }
         viewModel = AdvancedSettingsViewModel(
             settings,
             analyticsTracker,
