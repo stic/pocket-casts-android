@@ -286,7 +286,7 @@ class MainActivity :
         super.onCreate(savedInstanceState)
         theme.setupThemeForConfig(this, resources.configuration)
 
-        playbackManager.setNotificationPermissionChecker(this)
+        playbackManager.notificationPermissionChecker = this
 
         val showOnboarding = !settings.hasCompletedOnboarding() && !syncManager.isLoggedIn()
         // Only show if savedInstanceState is null in order to avoid creating onboarding activity twice.
@@ -507,6 +507,9 @@ class MainActivity :
         super.onDestroy()
         disposables.clear()
         mediaRouter?.removeCallback(mediaRouterCallback)
+        if (playbackManager.notificationPermissionChecker == this) {
+            playbackManager.notificationPermissionChecker = null
+        }
     }
 
     @Suppress("DEPRECATION")
