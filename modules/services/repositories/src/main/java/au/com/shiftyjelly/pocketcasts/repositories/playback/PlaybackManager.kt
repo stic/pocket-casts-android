@@ -136,7 +136,7 @@ open class PlaybackManager @Inject constructor(
         const val ENABLED_KEY = "enabled"
     }
 
-    private var notificationPermissionChecker: NotificationPermissionChecker? = null
+    var notificationPermissionChecker: NotificationPermissionChecker? = null
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Default
@@ -2144,9 +2144,5 @@ open class PlaybackManager @Inject constructor(
         properties[SOURCE_KEY] = sourceView.analyticsValue
         properties.putAll(props)
         analyticsTracker.track(event, properties)
-    }
-
-    fun setNotificationPermissionChecker(notificationPermissionChecker: NotificationPermissionChecker) {
-        this.notificationPermissionChecker = notificationPermissionChecker
     }
 }
