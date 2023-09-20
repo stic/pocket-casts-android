@@ -103,7 +103,7 @@ class PlayerContainerFragment : BaseFragment(), HasBackstack {
                         theme.updateWindowStatusBar(it.window, StatusBarColor.Custom(ThemeColor.primaryUi01(Theme.ThemeType.DARK), true), it)
                     }
 
-                    upNextFragment.startTour()
+                    upNextFragment.onExpanded()
 
                     FirebaseAnalyticsTracker.openedUpNext()
                 } else if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
@@ -111,6 +111,7 @@ class PlayerContainerFragment : BaseFragment(), HasBackstack {
                     updateUpNextVisibility(false)
 
                     (activity as? FragmentHostListener)?.updateSystemColors()
+                    upNextFragment.onCollapsed()
                 }
             }
         })

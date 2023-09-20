@@ -11,6 +11,9 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -107,6 +110,64 @@ class UpNextFragment : BaseFragment(), UpNextListener, UpNextTouchCallback.ItemT
 
     val overrideTheme: Theme.ThemeType
         get() = if (Theme.isDark(context)) theme.activeTheme else Theme.ThemeType.DARK
+
+    val multiSelectListener = object : MultiSelectHelper.Listener<BaseEpisode> {
+        override fun multiSelectSelectAll() {
+            trackUpNextEvent(
+                AnalyticsEvent.UP_NEXT_SELECT_ALL_TAPPED,
+                mapOf(SELECT_ALL_KEY to true)
+            )
+            multiSelectHelper.selectAllInList(upNextEpisodes)
+            adapter.notifyDataSetChanged()
+        }
+
+        override fun multiSelectSelectNone() {
+            trackUpNextEvent(
+                AnalyticsEvent.UP_NEXT_SELECT_ALL_TAPPED,
+                mapOf(SELECT_ALL_KEY to false)
+            )
+            multiSelectHelper.deselectAllInList(upNextEpisodes)
+            adapter.notifyDataSetChanged()
+        }
+
+        override fun multiSelectSelectAllUp(multiSelectable: BaseEpisode) {
+            val startIndex = upNextEpisodes.indexOf(multiSelectable)
+            if (startIndex > -1) {
+                val episodesAbove = upNextEpisodes.subList(0, startIndex + 1)
+                multiSelectHelper.selectAllInList(episodesAbove)
+            }
+
+            adapter.notifyDataSetChanged()
+        }
+
+        override fun multiSelectSelectAllDown(multiSelectable: BaseEpisode) {
+            val startIndex = upNextEpisodes.indexOf(multiSelectable)
+            if (startIndex > -1) {
+                val episodesBelow = upNextEpisodes.subList(startIndex, upNextEpisodes.size)
+                multiSelectHelper.selectAllInList(episodesBelow)
+            }
+
+            adapter.notifyDataSetChanged()
+        }
+
+        override fun multiDeselectAllBelow(multiSelectable: BaseEpisode) {
+            val startIndex = upNextEpisodes.indexOf(multiSelectable)
+            if (startIndex > -1) {
+                val episodesBelow = upNextEpisodes.subList(startIndex, upNextEpisodes.size)
+                multiSelectHelper.deselectAllInList(episodesBelow)
+            }
+            adapter.notifyDataSetChanged()
+        }
+
+        override fun multiDeselectAllAbove(multiSelectable: BaseEpisode) {
+            val startIndex = upNextEpisodes.indexOf(multiSelectable)
+            if (startIndex > -1) {
+                val episdesAbove = upNextEpisodes.subList(0, startIndex + 1)
+                multiSelectHelper.deselectAllInList(episdesAbove)
+            }
+            adapter.notifyDataSetChanged()
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val themedContext = ContextThemeWrapper(activity, UR.style.ThemeDark)
@@ -243,57 +304,7 @@ class UpNextFragment : BaseFragment(), UpNextListener, UpNextTouchCallback.ItemT
 
             adapter.notifyDataSetChanged()
         }
-        multiSelectHelper.listener = object : MultiSelectHelper.Listener<BaseEpisode> {
-            override fun multiSelectSelectAll() {
-                trackUpNextEvent(AnalyticsEvent.UP_NEXT_SELECT_ALL_TAPPED, mapOf(SELECT_ALL_KEY to true))
-                multiSelectHelper.selectAllInList(upNextEpisodes)
-                adapter.notifyDataSetChanged()
-            }
-
-            override fun multiSelectSelectNone() {
-                trackUpNextEvent(AnalyticsEvent.UP_NEXT_SELECT_ALL_TAPPED, mapOf(SELECT_ALL_KEY to false))
-                multiSelectHelper.deselectAllInList(upNextEpisodes)
-                adapter.notifyDataSetChanged()
-            }
-
-            override fun multiSelectSelectAllUp(multiSelectable: BaseEpisode) {
-                val startIndex = upNextEpisodes.indexOf(multiSelectable)
-                if (startIndex > -1) {
-                    val episodesAbove = upNextEpisodes.subList(0, startIndex + 1)
-                    multiSelectHelper.selectAllInList(episodesAbove)
-                }
-
-                adapter.notifyDataSetChanged()
-            }
-
-            override fun multiSelectSelectAllDown(multiSelectable: BaseEpisode) {
-                val startIndex = upNextEpisodes.indexOf(multiSelectable)
-                if (startIndex > -1) {
-                    val episodesBelow = upNextEpisodes.subList(startIndex, upNextEpisodes.size)
-                    multiSelectHelper.selectAllInList(episodesBelow)
-                }
-
-                adapter.notifyDataSetChanged()
-            }
-
-            override fun multiDeselectAllBelow(multiSelectable: BaseEpisode) {
-                val startIndex = upNextEpisodes.indexOf(multiSelectable)
-                if (startIndex > -1) {
-                    val episodesBelow = upNextEpisodes.subList(startIndex, upNextEpisodes.size)
-                    multiSelectHelper.deselectAllInList(episodesBelow)
-                }
-                adapter.notifyDataSetChanged()
-            }
-
-            override fun multiDeselectAllAbove(multiSelectable: BaseEpisode) {
-                val startIndex = upNextEpisodes.indexOf(multiSelectable)
-                if (startIndex > -1) {
-                    val episdesAbove = upNextEpisodes.subList(0, startIndex + 1)
-                    multiSelectHelper.deselectAllInList(episdesAbove)
-                }
-                adapter.notifyDataSetChanged()
-            }
-        }
+        multiSelectHelper.listener = multiSelectListener
 
         multiSelectHelper.context = view.context
         multiSelectToolbar.setup(viewLifecycleOwner, multiSelectHelper, menuRes = VR.menu.menu_multiselect_upnext, fragmentManager = parentFragmentManager)
@@ -310,7 +321,16 @@ class UpNextFragment : BaseFragment(), UpNextListener, UpNextTouchCallback.ItemT
         }
     }
 
-    fun startTour() {
+    fun onExpanded() {
+        multiSelectHelper.listener = multiSelectListener
+        startTour()
+    }
+
+    fun onCollapsed() {
+        multiSelectHelper.listener = null
+    }
+
+    private fun startTour() {
         val upNextTourView = realBinding?.upNextTourView ?: return
         if (settings.getSeenUpNextTour()) {
             (upNextTourView.parent as? ViewGroup)?.removeView(upNextTourView)
