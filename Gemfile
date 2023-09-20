@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
+source 'https://rubygems.org'
+
+gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 gem 'fastlane', '~> 2'
 gem 'fastlane-plugin-wpmreleasetoolkit', '~> 9.0'
 
