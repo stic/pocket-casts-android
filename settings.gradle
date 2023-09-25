@@ -32,3 +32,5 @@ include ':modules:services:ui'
 include ':modules:services:utils'
 include ':modules:services:views'
 include ':modules:services:sharedtest'
+
+include ':app-benchmark'
